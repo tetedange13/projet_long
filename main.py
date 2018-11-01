@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 
+import numpy as np
+
+
 def calcul_distance(dico_pdb, dico_align):
     """
     Calcul distance between all residus pair by pair.
@@ -35,6 +38,28 @@ def calcul_distance(dico_pdb, dico_align):
                     # -1 is added when one residu is a gap
                     matrix_dist[i, j] = -1
     return matrix_dist
+    
+    
+def dist_to_proba(dist):1/(1+exp((x-8)/1.5)
+    if dist > 15: # Cut-off, deducted from visualization, may be an prog arg ?
+        return 0
+    return 1/(1+exp((dist-8)/1.5)    
+    
+
+def extract_subarrays(proba_arr, m): # PI(m)
+    A = proba_arr[m:n, 0:m] # There is also np.ix_()
+    B = proba_arr[0:m, m:n]
+    C = proba_arr[0:m, 0:m]
+    
+    return (A, B, C) # Faut-il retourner plutot la somme des matrices ??
+    # return (A*B - C**2)/((A+C)(B+C)) 
+    
+
+def joint_proba_arr(proba_arr):
+
+
+
+    
 def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
     """
     Calcul total energy of the query threaded on the template. A dope
