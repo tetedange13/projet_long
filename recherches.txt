@@ -1,0 +1,30 @@
+==RECHERCHES==
+==============
+
+
+LIENS:
+- https://academic.oup.com/bioinformatics/article/22/2/129/424567
+
+
+- Extrait de "Protein Peeling’: an approach for splitting a 3D protein structure
+into compact fragments"
+"each PU must have a high number of intra-PU contacts, and, a low number of 
+inter-PU contacts"
+=> On sent venir le clustering hiérarchique en fait
+
+- D'abord, faut commencer à trouver la partition optimale (maximisant le
+partition index) en 2 sous-séquences
+On verra plus tard pour faire plus de 2
+
+- Faut prendre une séquence et regarder à quoi ressemble la distribution des
+PI(m) en fonction de m
+=> Est-ce qu'il y a plusieurs maxima?
+=> Est-ce qu'on prend toujours le maximum, puis ensuite le max dans chaque PU
+nouvellement formé?
+
+
+QUESTIONS:
+- Dans la formule logistique, je comprends bien le "8A", qui correspond à un 
+seuil en-dessous duquel 2 residus sont considérés en contact, mais à quoi
+correspond le "1.5A"?
+=> Mettre ces valeurs en argument du programme?
