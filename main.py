@@ -103,6 +103,10 @@ if __name__ == "__main__":
     cmd_line = ("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss -R2 98"
                 "-ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5 -oss 0 -p 0 -cp 0 -npu 16")
     # The split function of the shlex module is used to generate a list of args:
+    # os.system(cmd_line)
     out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
-    print(type(out.decode()))#.split('\n'))
-# Utiliser le module subprocess pour recuperer la sortie du peeling
+    lines = out.decode().split('\n')
+    for line in lines:
+        #print(len(line))
+        if line and line[0] != '#': # There is 1 element with empty str
+            print(line.split())
