@@ -2,6 +2,7 @@
 
 
 import numpy as np
+import sys, os
 
 
 def calcul_distance(dico_pdb, dico_align):
@@ -38,28 +39,17 @@ def calcul_distance(dico_pdb, dico_align):
                     # -1 is added when one residu is a gap
                     matrix_dist[i, j] = -1
     return matrix_dist
-    
-    
-def dist_to_proba(dist):1/(1+exp((x-8)/1.5)
-    if dist > 15: # Cut-off, deducted from visualization, may be an prog arg ?
-        return 0
-    return 1/(1+exp((dist-8)/1.5)    
-    
+
 
 def extract_subarrays(proba_arr, m): # PI(m)
     A = proba_arr[m:n, 0:m] # There is also np.ix_()
     B = proba_arr[0:m, m:n]
     C = proba_arr[0:m, 0:m]
-    
+
     return (A, B, C) # Faut-il retourner plutot la somme des matrices ??
-    # return (A*B - C**2)/((A+C)(B+C)) 
-    
-
-def joint_proba_arr(proba_arr):
+    # return (A*B - C**2)/((A+C)(B+C))
 
 
-
-    
 def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
     """
     Calcul total energy of the query threaded on the template. A dope
@@ -99,3 +89,14 @@ def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
                 # residus with the distance calculated
                 energy += dope_arr[idx_dist][idx1][idx2]
     return energy
+
+
+# MAIN:
+if __name__ == "__main__":
+    if not os.path.isfile("data/1aoh.dss"):
+        os.system("dssp data/1aoh.pdb > data/1aoh.dss")
+
+    os.system("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss -R2 98"
+              "-ss2 8 -lspu 30 -mspu 0 -d0 6.0 -delta 1.5 -oss 0 -p 0 -cp 0 -npu 16")
+
+# Utiliser le module subprocess pour recuperer la sortie du peeling
