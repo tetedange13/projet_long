@@ -3,6 +3,8 @@
 
 import numpy as np
 import sys, os
+import subprocess as sub
+import shlex as shx
 
 
 def calcul_distance(dico_pdb, dico_align):
@@ -93,10 +95,14 @@ def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
 
 # MAIN:
 if __name__ == "__main__":
+    # Creatio of dssp file:
     if not os.path.isfile("data/1aoh.dss"):
         os.system("dssp data/1aoh.pdb > data/1aoh.dss")
 
-    os.system("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss -R2 98"
-              "-ss2 8 -lspu 30 -mspu 0 -d0 6.0 -delta 1.5 -oss 0 -p 0 -cp 0 -npu 16")
-
+    # Peeling:
+    cmd_line = ("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss -R2 98"
+                "-ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5 -oss 0 -p 0 -cp 0 -npu 16")
+    # The split function of the shlex module is used to generate a list of args:
+    out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
+    print(type(out.decode()))#.split('\n'))
 # Utiliser le module subprocess pour recuperer la sortie du peeling
