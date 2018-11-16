@@ -5,48 +5,68 @@ This module deals with input and output files to the program.
 It contains parsing and writing functions.
 """
 
+# from Bio.PDB.Polypeptide import three_to_one, one_to_three
 
-def dope_to_arr(input_dope_file):
-    """
-    Args: The parsed dope_CAonly.par file, with only the potentials beetween
-    the CA
-    Returns: A 3D numpy array
-    """
-    nb_nrgies = 30
-    nb_aa = 20
-    dope_arr = np.zeros( (nb_nrgies, nb_aa, nb_aa), dtype="float" ) # 3D array
-    i, j, k = 0, 0, 0
-    index_aa = {} # To make correspond amino acids with index inside the array
-    for one_line in input_dope_file:
-        splitted_line = one_line.split()
-        if k < 20: index_aa[three_to_one(splitted_line[2])] = k ; k +=1
-        nrgies = [nrgy for nrgy in map(float, splitted_line[4:])]
-        dope_arr[:, i, j] = nrgies
-        if j != (nb_aa - 1): j += 1 # Next column
-        else: i += 1 ; j = 0 # Next line and go back at the beginning of line
-    return (dope_arr, index_aa)
-    
 
-def parse_atm_file(name_pdb, start):
+def parse_pdb_2(pdb_file):
     """
     Read a pdb or atm file
     Args: The name of the pdb or atm file
     Returns: A list of dictionaries containig coordinate of residus
     """
-    list_dict = []
-    res = []
+
+    dict_coord = {}
     # Id for residu because in some pdb files the num residu
     # dosen't start to 1
-    res_id = 1
-    with open(name_pdb, "r") as filin:
-        for line in filin:
-            if line[0:6].strip() == "ATOM" and line[12:16].strip() == "CA":
-                if res_id >= start:
-                    list_dict.append({"residu":line[17:20].strip(),
-                                 "numero":res_id,
+    resID = 1
+
+    for line in pdb_file:
+
+        if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+        ( (resName == "MET") or resName == "MSE") ):
+        #if line[0:6].strip() == "ATOM" or "HETATM" and not "":
+            resName = line[17:20].strip()
+            atom_name = line[12:16].strip()
+            dict_coord[resID] = {"resName":resName,
+                                 "atom_name":atom_name,
+                                 "num":line[22:26].strip(),
                                  "x":float(line[30:38]),
                                  "y":float(line[38:46]),
-                                 "z":float(line[46:54])})
-                res_id += 1
-    return list_dict
+                                 "z":float(line[46:54])}
 
+            if atom_name == "CA":
+                resID += 1
+
+    return dict_coord
+
+
+def parse_pdb(pdb_file):
+    """
+    Read a pdb or atm file
+    Args: The name of the pdb or atm file
+    Returns: A list of dictionaries containig coordinate of residus
+    """
+
+    dict_coord = {}
+    # Id for residu because in some pdb files the num residu
+    # dosen't start to 1
+    resID = 1
+
+    for line in pdb_file:
+        resName = line[17:20].strip()
+        resID_pdb = line[22:26] 
+
+        if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+        ( (resName == "MET") or resName == "MSE") ):
+
+            if resID not in dict_coord.keys():
+                dict_coord[resID] = line
+            else:
+                dict_coord[resID] += line
+
+        if line[12:16].strip() == "N":
+            resID += 1
+
+    for line in dict_coord[2].split('\n'):
+        print(line)
+    return dict_coord

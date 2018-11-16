@@ -5,6 +5,7 @@ import numpy as np
 import sys, os
 import subprocess as sub
 import shlex as shx
+import src.manage_io as mio
 
 
 def calcul_distance(dico_pdb, dico_align):
@@ -93,9 +94,32 @@ def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
     return energy
 
 
+def write_dict(dict_coord):
+    pass
+
+
+def generate_PU_pdbs(bounds_PU, level_cut, dict_coord, name_pdb):
+    """
+    """
+
+    nb_PU = bounds_PU[0] # 1st element = total number of PU
+
+    for i in range(nb_PU):
+        out_file = "results/" + name_pdb + "_PU_" + level_cut + '_' + PU_idx + 1
+        with open(out_file, 'r') as out_PU:
+            inf_bound, sup_bound = bounds_PU[i:i+2]
+            print(inf_bound, sup_bound)
+            for resID in range():
+                for atoms in dict_coord[resID]:
+                    #out_PU.write(atoms)
+                    pass
+
+
+
+
 # MAIN:
 if __name__ == "__main__":
-    # Creatio of dssp file:
+    # Creation of dssp file:
     if not os.path.isfile("data/1aoh.dss"):
         os.system("dssp data/1aoh.pdb > data/1aoh.dss")
 
@@ -106,7 +130,16 @@ if __name__ == "__main__":
     # os.system(cmd_line)
     out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
     lines = out.decode().split('\n')
+
+    with open("data/1aoh.pdb") as pdb_file:
+        dict_coord = mio.parse_pdb(pdb_file)
+
+    level_cut = 0
     for line in lines:
         #print(len(line))
         if line and line[0] != '#': # There is 1 element with empty str
-            print(line.split())
+            level_cut += 1
+
+            splitted_line = line.split()
+            bounds_PU = [int(limit) for limit in splitted_line[4:]]
+            generate_PU_pdbs()

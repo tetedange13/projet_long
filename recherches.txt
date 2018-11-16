@@ -28,3 +28,7 @@ QUESTIONS:
 seuil en-dessous duquel 2 residus sont considérés en contact, mais à quoi
 correspond le "1.5A"?
 => Mettre ces valeurs en argument du programme?
+
+REMARQUES:
+- Le 1er TM_score généré par TM_align correspond à une normalisation par le 1er
+des 2 pdb donnés en input 
