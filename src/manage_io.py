@@ -50,23 +50,26 @@ def parse_pdb(pdb_file):
     dict_coord = {}
     # Id for residu because in some pdb files the num residu
     # dosen't start to 1
-    resID = 1
+    resID = 0
 
     for line in pdb_file:
         resName = line[17:20].strip()
-        resID_pdb = line[22:26] 
+        resID_pdb = line[22:26]
 
         if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
-        ( (resName == "MET") or resName == "MSE") ):
+           ( (resName == "MET") or resName == "MSE") ):
+            if line[12:16].strip() == "N": # Suppose that 1st = "N"
+                resID += 1
 
             if resID not in dict_coord.keys():
                 dict_coord[resID] = line
             else:
                 dict_coord[resID] += line
 
-        if line[12:16].strip() == "N":
-            resID += 1
-
-    for line in dict_coord[2].split('\n'):
-        print(line)
+    # for line in dict_coord[1].split('\n'):
+    #     print(line)
     return dict_coord
+
+if __name__ == "__main__":
+    with open("data/1aoh.pdb", 'r') as pdb_file:
+        parse_pdb(pdb_file)

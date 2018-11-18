@@ -4,7 +4,7 @@
 import numpy as np
 import sys, os
 import subprocess as sub
-import shlex as shx
+# import shlex as shx
 import src.manage_io as mio
 
 
@@ -105,41 +105,92 @@ def generate_PU_pdbs(bounds_PU, level_cut, dict_coord, name_pdb):
     nb_PU = bounds_PU[0] # 1st element = total number of PU
 
     for i in range(nb_PU):
-        out_file = "results/" + name_pdb + "_PU_" + level_cut + '_' + PU_idx + 1
-        with open(out_file, 'r') as out_PU:
-            inf_bound, sup_bound = bounds_PU[i:i+2]
-            print(inf_bound, sup_bound)
-            for resID in range():
-                for atoms in dict_coord[resID]:
-                    #out_PU.write(atoms)
-                    pass
+        out_file = "results/" + name_pdb + "_PU_" + str(level_cut) + '_' + str(i+1)
+        with open(out_file + '.pdb', 'w') as out_PU:
+            inf_bound, sup_bound = bounds_PU[(2*i+1):(2*(i+1)+1)]
+
+            for resID in range(inf_bound, sup_bound+1):
+                #for atoms in dict_coord[resID]:
+                out_PU.write(dict_coord[resID])
+
+def generate_pdb_PU(bounds_PU, level_cut, dict_coord, name_pdb, idx):
+    """
+    """
+
+    out_file =  name_pdb + "_PU_" + str(level_cut) + '_' + str(idx+1) + '.pdb'
+    inf_bound, sup_bound = bounds_PU[(2*idx):(2*(idx+1))]
+
+    with open("results/" + out_file, 'w') as out_PU:
+        for resID in range(inf_bound, sup_bound+1):
+            out_PU.write(dict_coord[resID])
 
 
+def TM_align(name_pdb, level, idx):
+    """
+    Returns the TMscore?
+    """
+
+    PU_filename = name_pdb + "_PU_" + str(level) + '_' + str(idx+1) + '.pdb'
+    pdb_filename = name_pdb + '.pdb'
+    cmdLine_TM = "bin/32bits_TMalign results/" + PU_filename + " data/" + pdb_filename
+    out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
+    lines_TM = out_TM.decode()
+
+    return float(lines_TM[1026:1033]) # The TMscore
 
 
 # MAIN:
 if __name__ == "__main__":
     # Creation of dssp file:
     if not os.path.isfile("data/1aoh.dss"):
-        os.system("dssp data/1aoh.pdb > data/1aoh.dss")
+        os.system("bin/dssp data/1aoh.pdb > data/1aoh.dss")
 
-    # Peeling:
-    cmd_line = ("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss -R2 98"
-                "-ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5 -oss 0 -p 0 -cp 0 -npu 16")
-    # The split function of the shlex module is used to generate a list of args:
-    # os.system(cmd_line)
-    out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
-    lines = out.decode().split('\n')
+    a_la_fac = False
+    if a_la_fac:
+        # Peeling:
+        cmdLine_peel = ("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss"
+                        " -R2 98 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5 "
+                        "-oss 0 -p 0 -cp 0 -npu 16")
+        # The split function of the shlex module is used to generate a list of args:
+        # os.system(cmd_line)
+        #out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
+        out_peel = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
+        lines_peel = out_peel.decode().split('\n')
+
+        pdb_name = "1aoh"
+        with open("data/" + pdb_name + ".pdb") as pdb_file:
+            dict_coord = mio.parse_pdb(pdb_file)
+
+        level = 0
+        for line in lines:
+            #print(len(line))
+            if line and line[0] != '#': # There is 1 element with empty str
+                level += 1
+
+                splitted_line = line.split()
+                nb_PU = int(splitted_line[4])
+                # bounds_PU = [int(limit) for limit in splitted_line[4:]]
+                bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
+
+                for i in range(nb_PU):
+                    bounds_all_PU[]
+                    generate_pdb_PU(bounds_all_PU, level, dict_coord, name_pdb, i)
+                    TM_align(pdb_name, level, i)
+
+                #generate_PU_pdbs()
 
     with open("data/1aoh.pdb") as pdb_file:
         dict_coord = mio.parse_pdb(pdb_file)
 
-    level_cut = 0
-    for line in lines:
-        #print(len(line))
-        if line and line[0] != '#': # There is 1 element with empty str
-            level_cut += 1
-
-            splitted_line = line.split()
-            bounds_PU = [int(limit) for limit in splitted_line[4:]]
-            generate_PU_pdbs()
+    #bounds_PU = [2, 1, 143, 144, 290]
+    bounds_all_PU = [3, 1, 56, 57, 143, 144, 290]
+    generate_PU_pdbs(bounds_all_PU, 2, dict_coord, "toto")
+    cmdLine_TM = "bin/32bits_TMalign results/toto_PU_2_1.pdb data/1aoh.pdb"
+    out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
+    lines_TM = out_TM.decode()
+    splitted_linesTM = lines_TM.split('\n')
+    # salut = lines_TM.find("0.39161 (if normalized by length of Chain_2)")
+    #lines_TM[1016:1033]
+    TM_score = float(lines_TM[1026:1033])
+    print(TM_score)
+    # print(salut)
