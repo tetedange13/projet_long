@@ -130,9 +130,18 @@ def TM_align(name_pdb, level, idx):
     Returns the TMscore?
     """
 
+    # To view superimposed C-alpha traces of aligned regions by rasmol: TM.sup
+    #    To view superimposed C-alpha traces of all regions: TM.sup_all
+    #    To view superimposed full-atom structures of aligned regions: TM.sup_atm
+    #    To view superimposed full-atom structures of all regions: TM.sup_all_atm
+    #    To view superimposed full-atom structures of all regions with ligands:
+    #        TM.sup_all_atm_lig
+
+
     PU_filename = name_pdb + "_PU_" + str(level) + '_' + str(idx+1) + '.pdb'
     pdb_filename = name_pdb + '.pdb'
-    cmdLine_TM = "bin/32bits_TMalign results/" + PU_filename + " data/" + pdb_filename
+    cmdLine_TM = ("bin/32bits_TMalign results/" + PU_filename + " data/" + 
+                   pdb_filename + "-o " + name_pdb + '.sup')
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
 
