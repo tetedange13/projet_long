@@ -44,15 +44,6 @@ def calcul_distance(dico_pdb, dico_align):
     return matrix_dist
 
 
-def extract_subarrays(proba_arr, m): # PI(m)
-    A = proba_arr[m:n, 0:m] # There is also np.ix_()
-    B = proba_arr[0:m, m:n]
-    C = proba_arr[0:m, 0:m]
-
-    return (A, B, C) # Faut-il retourner plutot la somme des matrices ??
-    # return (A*B - C**2)/((A+C)(B+C))
-
-
 def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
     """
     Calcul total energy of the query threaded on the template. A dope
@@ -94,10 +85,6 @@ def calcul_energy(matrix_dist, dope_arr, index_aa, dico_align):
     return energy
 
 
-def write_dict(dict_coord):
-    pass
-
-
 def generate_PU_pdbs(bounds_PU, level_cut, dict_coord, name_pdb):
     """
     """
@@ -110,8 +97,8 @@ def generate_PU_pdbs(bounds_PU, level_cut, dict_coord, name_pdb):
             inf_bound, sup_bound = bounds_PU[(2*i+1):(2*(i+1)+1)]
 
             for resID in range(inf_bound, sup_bound+1):
-                #for atoms in dict_coord[resID]:
                 out_PU.write(dict_coord[resID])
+
 
 def generate_pdb_PU(bounds_PU, level_cut, dict_coord, name_pdb, idx):
     """
@@ -125,12 +112,12 @@ def generate_pdb_PU(bounds_PU, level_cut, dict_coord, name_pdb, idx):
             out_PU.write(dict_coord[resID])
 
 
-def TM_align(name_pdb, level, idx):
+def TM_align(pdbName_1, pdbName_2, level, idx):
     """
     Returns the TMscore?
     """
 
-    # To view superimposed C-alpha traces of aligned regions by rasmol: TM.sup
+    # To view superimposed C-alpha traces of aligned regions: TM.sup
     #    To view superimposed C-alpha traces of all regions: TM.sup_all
     #    To view superimposed full-atom structures of aligned regions: TM.sup_atm
     #    To view superimposed full-atom structures of all regions: TM.sup_all_atm
@@ -138,14 +125,21 @@ def TM_align(name_pdb, level, idx):
     #        TM.sup_all_atm_lig
 
 
-    PU_filename = name_pdb + "_PU_" + str(level) + '_' + str(idx+1) + '.pdb'
-    pdb_filename = name_pdb + '.pdb'
-    cmdLine_TM = ("bin/32bits_TMalign results/" + PU_filename + " data/" + 
-                   pdb_filename + "-o " + name_pdb + '.sup')
+    PU_name = pdbName_1 + "_PU_" + str(level) + '_' + str(idx+1)
+    cmdLine_TM = ("bin/32bits_TMalign results/" + PU_name + '.pdb' + " data/" +
+                   pdbName_2 + '.pdb' + " -o " + "results/" + PU_name + '.sup')
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
+    print(lines_TM)
+
+    # Remove useless files:
+    os.remove("results/" + PU_name + ".sup_all_atm_lig")
+    os.remove("results/" + PU_name + ".sup_all")
+    os.remove("results/" + PU_name + ".sup")
+    os.remove("results/" + PU_name + ".sup_all_atm")
 
     return float(lines_TM[1026:1033]) # The TMscore
+
 
 
 # MAIN:
@@ -153,6 +147,10 @@ if __name__ == "__main__":
     # Creation of dssp file:
     if not os.path.isfile("data/1aoh.dss"):
         os.system("bin/dssp data/1aoh.pdb > data/1aoh.dss")
+
+    if not os.path.isfile("data/1jlx.dss"):
+        os.system("bin/dssp data/1jlx.pdb > data/1jlx.dss")
+
 
     a_la_fac = False
     if a_la_fac:
@@ -167,8 +165,8 @@ if __name__ == "__main__":
         lines_peel = out_peel.decode().split('\n')
 
         pdb_name = "1aoh"
-        with open("data/" + pdb_name + ".pdb") as pdb_file:
-            dict_coord = mio.parse_pdb(pdb_file)
+        with open("data/" + pdb_name + ".pdb") as pdbFile_1:
+            dict_coord = mio.parse_pdb(pdbFile_1)
 
         level = 0
         for line in lines:
@@ -182,24 +180,49 @@ if __name__ == "__main__":
                 bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
 
                 for i in range(nb_PU):
-                    bounds_all_PU[]
+                    # bounds_all_PU[]
                     generate_pdb_PU(bounds_all_PU, level, dict_coord, name_pdb, i)
                     TM_align(pdb_name, level, i)
 
                 #generate_PU_pdbs()
 
-    with open("data/1aoh.pdb") as pdb_file:
-        dict_coord = mio.parse_pdb(pdb_file)
+
+    pdbName_1 = "1aoh"
+    pdbName_2 = "1jlx"
+
+    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1:
+        dictCoord_1 = mio.parse_pdb(pdbFile_1)
 
     #bounds_PU = [2, 1, 143, 144, 290]
-    bounds_all_PU = [3, 1, 56, 57, 143, 144, 290]
-    generate_PU_pdbs(bounds_all_PU, 2, dict_coord, "toto")
-    cmdLine_TM = "bin/32bits_TMalign results/toto_PU_2_1.pdb data/1aoh.pdb"
-    out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
-    lines_TM = out_TM.decode()
-    splitted_linesTM = lines_TM.split('\n')
-    # salut = lines_TM.find("0.39161 (if normalized by length of Chain_2)")
-    #lines_TM[1016:1033]
-    TM_score = float(lines_TM[1026:1033])
-    print(TM_score)
+
+    # From output of peeling:
+    bounds_all_PU = [1, 56, 57, 143, 144, 290]
+    nb_PU = 3
+    level = 2
+    arr_scores = np.zeros(nb_PU, dtype=float) # np array to use argmax()
+
+    #for i in range(nb_PU):
+    for i in range(1, 2):
+        generate_pdb_PU(bounds_all_PU, level, dictCoord_1, pdbName_1, i)
+        arr_scores[i] = TM_align(pdbName_1, pdbName_2, level, i)
+
+    idxMax = np.argmax(arr_scores)
+    PU_name_max = pdbName_1 + "_PU_" + str(level) + '_' + str(idxMax+1)
+    print(PU_name_max)
+
+    with open('results/' + PU_name_max + '.sup_atm', 'r') as toto:
+        pass
+        # 1- Envoyer la chaine A (coord PU) dans le fichier rassemblant les coord
+        # des differentes PU alignees
+        # 2- Reecrire un fichier pdb (ref 1jlx) en suppr atoms associes a la B
+
+    # generate_PU_pdbs(bounds_all_PU, 2, dictCoord_1, "toto")
+    # cmdLine_TM = "bin/32bits_TMalign results/toto_PU_2_1.pdb data/1aoh.pdb"
+    # out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
+    # lines_TM = out_TM.decode()
+    # splitted_linesTM = lines_TM.split('\n')
+    # # salut = lines_TM.find("0.39161 (if normalized by length of Chain_2)")
+    # #lines_TM[1016:1033]
+    # TM_score = float(lines_TM[1026:1033])
+    # print(TM_score)
     # print(salut)
