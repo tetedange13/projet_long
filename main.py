@@ -130,7 +130,7 @@ def TM_align(pdbName_1, pdbName_2, level, idx):
                    pdbName_2 + '.pdb' + " -o " + "results/" + PU_name + '.sup')
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    print(lines_TM)
+    #print(lines_TM)
 
     # Remove useless files:
     os.remove("results/" + PU_name + ".sup_all_atm_lig")
@@ -144,12 +144,19 @@ def TM_align(pdbName_1, pdbName_2, level, idx):
 
 # MAIN:
 if __name__ == "__main__":
+    pdbName_1 = "1aoh"
+    pdbName_2 = "1jlx"
+
     # Creation of dssp file:
     if not os.path.isfile("data/1aoh.dss"):
         os.system("bin/dssp data/1aoh.pdb > data/1aoh.dss")
 
     if not os.path.isfile("data/1jlx.dss"):
         os.system("bin/dssp data/1jlx.pdb > data/1jlx.dss")
+
+
+    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1:
+        dictCoord_1 = mio.parse_pdb(pdbFile_1)
 
 
     a_la_fac = False
@@ -161,39 +168,35 @@ if __name__ == "__main__":
         # The split function of the shlex module is used to generate a list of args:
         # os.system(cmd_line)
         #out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
-        out_peel = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
-        lines_peel = out_peel.decode().split('\n')
+        outPeel_1 = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
+        lines_peel = outPeel_1.decode().split('\n')
 
-        pdb_name = "1aoh"
-        with open("data/" + pdb_name + ".pdb") as pdbFile_1:
-            dict_coord = mio.parse_pdb(pdbFile_1)
-
-        level = 0
-        for line in lines:
-            #print(len(line))
-            if line and line[0] != '#': # There is 1 element with empty str
-                level += 1
-
-                splitted_line = line.split()
-                nb_PU = int(splitted_line[4])
-                # bounds_PU = [int(limit) for limit in splitted_line[4:]]
-                bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
-
-                for i in range(nb_PU):
-                    # bounds_all_PU[]
-                    generate_pdb_PU(bounds_all_PU, level, dict_coord, name_pdb, i)
-                    TM_align(pdb_name, level, i)
-
-                #generate_PU_pdbs()
+    else:
+        with open("data/" + pdbName_1 + '_peeled.txt', 'r') as outPeel_1:
+            lines_peel = outPeel_1.read().split('\n')
 
 
-    pdbName_1 = "1aoh"
-    pdbName_2 = "1jlx"
+    level = 0
+    for line in lines_peel:
+        #print(len(line))
+        if line and line[0] != '#': # There is 1 element with empty str
+            level += 1
 
-    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1:
-        dictCoord_1 = mio.parse_pdb(pdbFile_1)
+            splitted_line = line.split()
+            nb_PU = int(splitted_line[4])
+            # bounds_PU = [int(limit) for limit in splitted_line[4:]]
+            bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
+            arr_scores = np.zeros(nb_PU, dtype=float) # np array to use argmax()
 
-    #bounds_PU = [2, 1, 143, 144, 290]
+            for i in range(nb_PU):
+                generate_pdb_PU(bounds_all_PU, level, dictCoord_1, pdbName_1, i)
+                arr_scores[i] = TM_align(pdbName_1, pdbName_2, level, i)
+
+            print(arr_scores)
+            #generate_PU_pdbs()
+
+
+    sys.exit()
 
     # From output of peeling:
     bounds_all_PU = [1, 56, 57, 143, 144, 290]
