@@ -109,7 +109,7 @@ def generate_pdb_PU(bounds_PU, level_cut, dict_coord, name_pdb, idx):
 
     with open("results/" + out_file, 'w') as out_PU:
         for resID in range(inf_bound, sup_bound+1):
-            out_PU.write(dict_coord[resID])
+            out_PU.write(dict_coord[resID][1])
 
 
 def TM_align(pdbName_1, pdbName_2, level, idx):
@@ -141,6 +141,20 @@ def TM_align(pdbName_1, pdbName_2, level, idx):
     return float(lines_TM[1026:1033]) # The TMscore
 
 
+def erase_algned(dict_coord, set_to_discard, pdb_name):
+    """
+    """
+
+    with open('results/' + pdb_name + '.pdb', 'w') as pdb_file:
+        resIDs = dict_coord.keys()
+        print(sorted([int(nb) for nb in set_to_discard]))
+        for resID in resIDs:
+            resID_pdb = dict_coord[resID][0]
+
+            if resID_pdb not in set_to_discard:
+                pdb_file.write(dict_coord[resID][1])
+
+
 
 # MAIN:
 if __name__ == "__main__":
@@ -155,8 +169,10 @@ if __name__ == "__main__":
         os.system("bin/dssp data/1jlx.pdb > data/1jlx.dss")
 
 
-    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1:
+    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1, \
+         open("data/" + pdbName_2 + ".pdb") as pdbFile_2:
         dictCoord_1 = mio.parse_pdb(pdbFile_1)
+        dictCoord_2 = mio.parse_pdb(pdbFile_2)
 
 
     a_la_fac = False
@@ -173,7 +189,9 @@ if __name__ == "__main__":
 
     else:
         with open("data/" + pdbName_1 + '_peeled.txt', 'r') as outPeel_1:
-            lines_peel = outPeel_1.read().split('\n')
+            content_peel = outPeel_1.read()
+            print(content_peel)
+            lines_peel = content_peel.split('\n')
 
 
     level = 0
@@ -182,50 +200,42 @@ if __name__ == "__main__":
         if line and line[0] != '#': # There is 1 element with empty str
             level += 1
 
-            splitted_line = line.split()
-            nb_PU = int(splitted_line[4])
-            # bounds_PU = [int(limit) for limit in splitted_line[4:]]
-            bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
-            arr_scores = np.zeros(nb_PU, dtype=float) # np array to use argmax()
+            if level < 2:
+                splitted_line = line.split()
+                nb_PU = int(splitted_line[4])
+                # bounds_PU = [int(limit) for limit in splitted_line[4:]]
+                bounds_all_PU = [int(limit) for limit in splitted_line[5:]]
+                arr_scores = np.zeros(nb_PU, dtype=float) # np array to use argmax()
 
-            for i in range(nb_PU):
-                generate_pdb_PU(bounds_all_PU, level, dictCoord_1, pdbName_1, i)
-                arr_scores[i] = TM_align(pdbName_1, pdbName_2, level, i)
+                for i in range(nb_PU):
+                    generate_pdb_PU(bounds_all_PU, level, dictCoord_1, pdbName_1, i)
+                    arr_scores[i] = TM_align(pdbName_1, pdbName_2, level, i)
 
-            print(arr_scores)
-            #generate_PU_pdbs()
+                idxMax = np.argmax(arr_scores)
+                PU_name_max = pdbName_1 + "_PU_" + str(level) + '_' + str(idxMax+1)
+                print(PU_name_max)
+                algnd_filename = 'PU_' + str(level) + '_algnd.pdb'
 
+                with open('results/' + PU_name_max + '.sup_atm', 'r') as out_TM_max,\
+                     open('results/' + algnd_filename, 'a') as aligned_PU:
+                    set_to_discard = set()
 
-    sys.exit()
+                    for line in out_TM_max:
+                        if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+                           ( (resName == "MET") or resName == "MSE") ):
+                           chain_ID = line[21:22].strip()
+
+                           if chain_ID == "A":
+                               aligned_PU.write(line)
+                           elif chain_ID == "B":
+                               set_to_discard.add(line[22:26].strip())
+
+                    erase_algned(dictCoord_2, set_to_discard, pdbName_2)
+                    # 1- Envoyer la chaine A (coord PU) dans le fichier rassemblant les coord
+                    # des differentes PU alignees
+                    # 2- Reecrire un fichier pdb (ref 1jlx) en suppr atoms associes a la B
 
     # From output of peeling:
-    bounds_all_PU = [1, 56, 57, 143, 144, 290]
-    nb_PU = 3
-    level = 2
-    arr_scores = np.zeros(nb_PU, dtype=float) # np array to use argmax()
-
-    #for i in range(nb_PU):
-    for i in range(1, 2):
-        generate_pdb_PU(bounds_all_PU, level, dictCoord_1, pdbName_1, i)
-        arr_scores[i] = TM_align(pdbName_1, pdbName_2, level, i)
-
-    idxMax = np.argmax(arr_scores)
-    PU_name_max = pdbName_1 + "_PU_" + str(level) + '_' + str(idxMax+1)
-    print(PU_name_max)
-
-    with open('results/' + PU_name_max + '.sup_atm', 'r') as toto:
-        pass
-        # 1- Envoyer la chaine A (coord PU) dans le fichier rassemblant les coord
-        # des differentes PU alignees
-        # 2- Reecrire un fichier pdb (ref 1jlx) en suppr atoms associes a la B
-
-    # generate_PU_pdbs(bounds_all_PU, 2, dictCoord_1, "toto")
-    # cmdLine_TM = "bin/32bits_TMalign results/toto_PU_2_1.pdb data/1aoh.pdb"
-    # out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
-    # lines_TM = out_TM.decode()
-    # splitted_linesTM = lines_TM.split('\n')
-    # # salut = lines_TM.find("0.39161 (if normalized by length of Chain_2)")
-    # #lines_TM[1016:1033]
-    # TM_score = float(lines_TM[1026:1033])
-    # print(TM_score)
-    # print(salut)
+    # bounds_all_PU = [1, 56, 57, 143, 144, 290]
+    # nb_PU = 3
+    # level = 2

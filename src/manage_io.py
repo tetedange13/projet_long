@@ -60,15 +60,16 @@ def parse_pdb(pdb_file):
            ( (resName == "MET") or resName == "MSE") ):
             if line[12:16].strip() == "N": # Suppose that 1st = "N"
                 resID += 1
+                resID_pdb = line[22:26].strip() # Needed for erasing
 
             if resID not in dict_coord.keys():
-                dict_coord[resID] = line
+                dict_coord[resID] = [resID_pdb, line]
             else:
-                dict_coord[resID] += line
+                dict_coord[resID][1] += line
 
-    # for line in dict_coord[1].split('\n'):
-    #     print(line)
     return dict_coord
+
+
 
 if __name__ == "__main__":
     with open("data/1aoh.pdb", 'r') as pdb_file:
