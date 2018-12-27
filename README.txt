@@ -44,25 +44,25 @@ From this article:
 
 Requirements
 ------------
-* Naccess program is needed (http://wolf.bms.umist.ac.uk/naccess/, psswd = "nac97")
-
-* As for the following python modules: numpy, biopython and multiprocess
-(not a precise version needed)
+docopt
+numpy
+matplotlib
 
 
 
 Emergency content
 -----------------
 
-Help can be found with:
-    ./main.py --[h]elp
+Usage:
+  main.py -p <peeledPdb> -r <refPdb>
 
-    >> "Usage: main.py -i <inputFile.pdb> --[n]access" \
-                " <path_to_naccess_exe> --[p]recision <int>" \
-                " --[a]sa <float(thresoldASA)>"
-
+Options:
+  -h --help                  help
+  --version                  version of the script
+  -p --peeledPdb             input pdb file, that will be peeled
+  -r --refPdb                other input pdb file, that will be used as reference (not peeled)
 
 Example
 -------
 To run the script, with all the parameters:
-    ./main.py -i ./data/6b87.pdb -p 50 --naccess ../../Nacces/naccess --ASA 25
+    ./main.py -p data/1aoh.pdb -r data/1jlx.pdb
