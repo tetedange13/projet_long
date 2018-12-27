@@ -1,52 +1,39 @@
 #!/usr/bin/env python3
 
+"""PeelAlign script
+Usage:
+  main.py -p <peelPdb> -r <refPdb>
 
+Options:
+  -h --help                  help
+  --version                  version of the script
+  -p --peelPdb = peeled_pdb  input pdb file, that will be peeled
+  -r --refPdb = ref_pdb      other input pdb file, that will be used as reference (not peeled)
+"""
+
+
+from docopt import docopt
 import numpy as np
 import sys, os
 import subprocess as sub
-# import shlex as shx
 import src.manage_io as mio
+import re
+import matplotlib.pyplot as plt
+import matplotlib.ticker as tck
 
 
-def calcul_distance(dico_pdb, dico_align):
+def TM_align(PU_name, ref_pdb_name):
     """
-    Calcul distance between all residus pair by pair.
-    Args: The dictionary containing the coordinate of the template's structure
-    only CA and only the fragment which matched with the query
-          The dictionary of one alignment
-    Returns: A matrix of distance between all residus
-    """
-    size_query = len(dico_align['query'])
-    # Create the empty matrix distance, which will contain distances
-    # between all residus
-    matrix_dist = np.empty( (size_query, size_query), dtype="float" )
-    # Fill the matrix distance with NaN
-    matrix_dist[:] = np.nan
-    for i in range(0, size_query):
-        # Only the half matrix is completed because it's symetric
-        for j in range(i + 1, size_query):
-            # A window of 5 residus is taken because it's not interesting to
-            # calculate their distance, because they are too close.
-            if j not in range(i, i + 5) :
-                # If the two residus aren't a gap
-                if (dico_align['query'][i] != "-" and
-                    dico_align['query'][j] != "-" and
-                    dico_align['template'][i] != "-"):
-                    # calculate the distance between the two residus
-                    dist = np.sqrt((dico_pdb[i]["x"] - dico_pdb[j]["x"])**2 +
-                                   (dico_pdb[i]["y"] - dico_pdb[j]["y"])**2 +
-                                   (dico_pdb[i]["z"] - dico_pdb[j]["z"])**2)
-                    # fill the matrix with the calculated distance
-                    matrix_dist[i, j] = dist
-                else:
-                    # -1 is added when one residu is a gap
-                    matrix_dist[i, j] = -1
-    return matrix_dist
+    Using the TMalign binary, proceed to a structural alignment between a given
+    PU and the reference pdb (TMscore is returned as the stdout of TMalign
+    program)
 
+    Args:
+        PU_name: Name (str) of the PU to align
+        ref_pdb_name: Name (str) of the PDB to align against
 
-def TM_align(PU_name, pdbName_2):
-    """
-    Returns the TMscore?
+    Returns:
+        The value of the associated TMscore
     """
     # To view superimposed C-alpha traces of aligned regions: TM.sup
     #    To view superimposed C-alpha traces of all regions: TM.sup_all
@@ -56,23 +43,26 @@ def TM_align(PU_name, pdbName_2):
     #        TM.sup_all_atm_lig
 
     cmdLine_TM = ("bin/TMalign32 results/" + PU_name + '.pdb' + " results/" +
-                   pdbName_2 + '.pdb' + " -o " + "results/" + PU_name + '.sup')
+                  ref_pdb_name + '.pdb' + " -o " + "results/" + PU_name + '.sup')
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
+    # print(lines_TM)
+
+    regex_TMscore = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
+    searchObj = re.search(regex_TMscore, lines_TM)
 
     # Remove useless files:
     os.remove("results/" + PU_name + ".sup_all_atm_lig")
     os.remove("results/" + PU_name + ".sup_all")
     os.remove("results/" + PU_name + ".sup")
-    #os.remove("results/" + PU_name + ".sup_all_atm")
 
-    return float(lines_TM[1026:1033]) # The TMscore
+    return float(searchObj.group(1))
 
 
 def TM_to_pdb(pdb_name):
     """
-    Open an output file from TMalign and extract the chain A, corresponding to the
-    1st pdb now aligned on the reference pdb
+    Open an output file from TMalign and extract the chain A, corresponding to
+    the 1st pdb now aligned on the reference pdb
 
     Args:
         pdb_name: Name (str) of the 1st pdb (the one to get the aligned coordinates)
@@ -89,7 +79,7 @@ def TM_to_pdb(pdb_name):
                if chain_ID == "A":
                    pdb_out.write(line)
 
-    # Remove ".sup_all_atm" file (ow useless):
+    # Remove ".sup_all_atm" file (now useless):
     os.remove("results/" + pdb_name + ".sup_all_atm")
 
 
@@ -118,42 +108,39 @@ def peeled_to_dict(line):
     return dict_PU
 
 
-def generate_PU_pdbs(dict_PU, level_cut, dict_coord, name_pdb):
+def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_name):
     """
+    Generate different pdb file, associated to each PU, based to the boundaries
+    given as output of the peeling program
+
+    Args:
+        dict_PU: Dict containing the boundaries of each PU at a given level
+        level_cut: The current level considered (int)
+        dict_coord_peeled: Coordinates of the peeled pdb (dict)
+        peeled_pdb_name: Name (str) of the PDB that have been peeled
     """
     nb_PU = len(dict_PU)
 
     for i in range(1, nb_PU+1):
-        out_file = "results/" + name_pdb + "_PU_" + str(level_cut)
+        out_file = "results/" + peeled_pdb_name + "_PU_" + str(level_cut)
         with open(out_file + '_' + str(i) + '.pdb', 'w') as out_PU:
             inf_bound, sup_bound = dict_PU[i]
 
             for resID in range(inf_bound, sup_bound+1):
-                out_PU.write(dict_coord[resID][1])
+                out_PU.write(dict_coord_peeled[resID][1])
 
 
-def generate_pdb_PU(bounds_PU, level_cut, dict_coord, name_pdb, idx):
+def get_bestAlgnd_PU(dict_PU, already_selcted, peeled_pdb_name, ref_pdb_name, level):
     """
-    """
-    nb_PU = len(dict_PU)
-    out_file =  name_pdb + "_PU_" + str(level_cut) + '_' + str(idx+1) + '.pdb'
-    inf_bound, sup_bound = bounds_PU[(2*idx):(2*(idx+1))]
-
-    with open("results/" + out_file, 'w') as out_PU:
-        for resID in range(inf_bound, sup_bound+1):
-            out_PU.write(dict_coord[resID][1])
-
-
-def get_bestAlgnd_PU(dict_PU, already_selcted, pdbName_1, pdbName_2, level):
-    """
-    Aligned the different PU (that need to be aligned) against the
+    Align the different PU (that need to be aligned) against the reference pdb
+    (using TMalign) and get the number of the PU that has the maximum TMscore
 
     Args:
         dict_PU: Dict containing the boundaries of each PU at a given level
         already_selcted: List of the PU that have already been aligned and
         chose as best aligned PU
-        pdbName_1: Name (st                   r) of the PDB that have been peeled
-        pdbName_2: Name (str) of the PDB to align against
+        peeled_pdb_name: Name (str) of the PDB that have been peeled
+        ref_pdb_name: Name (str) of the PDB to align against
         level: Current level (int) considered
 
     Returns:
@@ -167,16 +154,15 @@ def get_bestAlgnd_PU(dict_PU, already_selcted, pdbName_1, pdbName_2, level):
 
     for i in range(nb_PU):
         if (i+1) not in already_selcted:
-            PU_name = pdbName_1 + "_PU_" + str(level) + '_' + str(i+1)
-            arr_scores[i] = TM_align(PU_name, pdbName_2)
+            PU_name = PEELED_PDB_NAME + "_PU_" + str(level) + '_' + str(i+1)
+            arr_scores[i] = TM_align(PU_name, REF_PDB_NAME)
 
-    print(arr_scores)
     nb_maxScore_PU = np.argmax(arr_scores) + 1
 
     # We can now delete all useless files:
     for i in range(nb_PU):
         if (i+1) != nb_maxScore_PU:
-            PU_name = pdbName_1 + "_PU_" + str(level) + '_' + str(i+1)
+            PU_name = PEELED_PDB_NAME + "_PU_" + str(level) + '_' + str(i+1)
 
             if os.path.isfile("results/" + PU_name + ".sup_atm"):
                 os.remove("results/" + PU_name + ".sup_atm")
@@ -186,11 +172,11 @@ def get_bestAlgnd_PU(dict_PU, already_selcted, pdbName_1, pdbName_2, level):
     return nb_maxScore_PU
 
 
-def test(bestAlgnd_PU, level):
+def process_TMalign_files(bestAlgnd_PU, level, peeled_pdb_name):
     """
     Take the number of the best aligned PU, open the associated TM_file and with
     it:
-        * Append the file gethering all aligned PU with the coordinats of this
+        * Append the file gethering all aligned PU with the coordinates of this
         new PU
         * Get the resID of residues that need to be erased from the pdb (the one
         that PU are aligned against)
@@ -199,12 +185,15 @@ def test(bestAlgnd_PU, level):
         bestAlgnd_PU: The number (int) of the PU that has been determined as the
         one best aligned
         level: The current level considered (int)
+        peeled_pdb_name: Name (str) of the PDB that have been peeled
 
     Returns:
-        The ensemble (set) of residues that need to be erased (by their resID)
-
+        The ensemble (set) of residues that needs to be erased from the
+        reference pdb (by their resID)
     """
     algnd_filename = 'PU_' + str(level) + '_algnd.pdb'
+    PU_name_max = peeled_pdb_name + "_PU_" + str(level) + '_' + str(bestAlgnd_PU)
+
     with open('results/' + PU_name_max + '.sup_atm', 'r') as out_TM_max,\
          open('results/' + algnd_filename, 'a') as aligned_PU:
         set_to_discard = set()
@@ -221,8 +210,8 @@ def test(bestAlgnd_PU, level):
                elif chain_ID == "B":
                    set_to_discard.add(line[22:26].strip())
 
-        aligned_PU.write("TER\n")
-
+        # aligned_PU.write("TER\n")
+    os.remove('results/' + PU_name_max + '.sup_atm')
     return set_to_discard
 
 
@@ -247,31 +236,93 @@ def erase_algned(dict_coord, set_to_discard, pdb_name):
                 pdb_file.write(dict_coord[resID][1])
 
 
+def TM_score(level, ref_pdb_name):
+    """
+    Using the TMscore binary, calculate the TMscore of a given pdb, containing
+    all aligned PUs and the reference pdb (so no alignment is processed)
+
+    Args:
+        level: The current level considered (int)
+        ref_pdb_name: Name (str) of the PDB to align against
+
+    Returns:
+        The value of the associated TMscore
+    """
+    PU_alignd_file = "PU_" + str(level) + "_algnd"  + '.pdb'
+    cmdLine_TM = ("bin/TMscore32 results/" + PU_alignd_file + " results/" +
+                  ref_pdb_name + '.pdb')
+    out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
+    lines_TM = out_TM.decode()
+    # print(lines_TM)
+
+    regex_TMscore = re.compile("(?:TM-score.+= )([0]\.[0-9]*)")
+    searchObj = re.search(regex_TMscore, lines_TM)
+
+    return float(searchObj.group(1))
+
+
+def display_curve(levels_x, TMscores_y, pdb_ref_name):
+    """
+    Display the curve of the values of TMscore (between aligned PU and reference
+    pdb), according to the level considered
+
+    Args:
+        levels_x: Levels considered (list)
+        TMscores_y: Values of TMscore (list)
+        pdb_ref_name: Name (str) of the reference pdb
+    """
+    fig = plt.figure()
+    axis = plt.subplot(111)
+    plt.title("TMscore according to the level considered")
+    # A list of plot to add different scores in the same plot
+    # plts = []
+    # for sc_name in scores:
+    #     plts.append(plt.plot(tot_cumsum_res[simil_fam][sc_name]))
+    plt.plot(TMscores_y, levels_x, 'bx-')
+    #plt.legend([x[0] for x in plts], scores+['random'])
+    plt.ylabel('TMscore with ' + pdb_ref_name)
+    plt.xlabel('Level of cutting')
+    axis.xaxis.set_major_locator(tck.MaxNLocator(integer=True))
+    plt.show()
+    #fig.savefig("results/bench/" + simil_fam + ".pdf")
+    #plt.close(fig)
+
+
+
 # MAIN:
 if __name__ == "__main__":
-    pdbName_1 = "1aoh"
-    pdbName_2 = "1jlx"
+    # Get the different arguments:
+    ARGS = docopt(__doc__, version='0.1')
+    PEELED_PDB_PATH = ARGS["--peelPdb"]
+    REF_PDB_PATH = ARGS["--refPdb"]
+
+    PEELED_PDB = os.path.basename(PEELED_PDB_PATH)
+    REF_PDB = os.path.basename(REF_PDB_PATH)
+    PEELED_PDB_NAME = os.path.splitext(PEELED_PDB)[0] #"1aoh"
+    REF_PDB_NAME = os.path.splitext(REF_PDB)[0] #"1jlx"
 
     # Creation of dssp file:
-    if not os.path.isfile("data/1aoh.dss"):
-        os.system("bin/dssp data/1aoh.pdb > data/1aoh.dss")
+    if not os.path.isfile("data/" + PEELED_PDB_NAME + ".dss"):
+        os.system("bin/dssp " + PEELED_PDB_PATH + " > data/" + PEELED_PDB_NAME +
+                  ".dss")
+    if not os.path.isfile("data/" + REF_PDB_NAME + ".dss"):
+        os.system("bin/dssp " + REF_PDB_PATH + " > data/" + REF_PDB_NAME +
+                  ".dss")
+    sys.exit()
 
-    if not os.path.isfile("data/1jlx.dss"):
-        os.system("bin/dssp data/1jlx.pdb > data/1jlx.dss")
-
-
-    with open("data/" + pdbName_1 + ".pdb") as pdbFile_1, \
-         open("data/" + pdbName_2 + ".pdb") as pdbFile_2:
-        dictCoord_1 = mio.parse_pdb(pdbFile_1)
-        dictCoord_2 = mio.parse_pdb(pdbFile_2)
+    with open(PEELED_PDB_PATH) as pdbFile_peeled, \
+         open(REF_PDB_PATH) as pdbFile_ref:
+        dictCoord_1 = mio.parse_pdb(pdbFile_peeled)
+        dictCoord_2 = mio.parse_pdb(pdbFile_ref)
 
 
     a_la_fac = False
     if a_la_fac:
         # Peeling:idxMax+1
-        cmdLine_peel = ("bin/peeling11_4.1 -pdb data/1aoh.pdb -dssp data/1aoh.dss"
-                        " -R2 98 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5 "
-                        "-oss 0 -p 0 -cp 0 -npu  16")
+        cmdLine_peel = ("bin/peeling11_4.1 -pdb " + PEELED_PDB_PATH +
+                        " -dssp data/" + REF_PDB_NAME + ".dss"
+                        " -R2 98 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5"
+                        " -oss 0 -p 0 -cp 0 -npu  16")
         # The split function of the shlex module is used to generate a list of args:
         # os.system(cmd_line)
         #out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
@@ -279,7 +330,7 @@ if __name__ == "__main__":
         lines_peel = outPeel_1.decode().split('\n')
 
     else:
-        with open("data/" + pdbName_1 + '_peeled.txt', 'r') as outPeel_1:
+        with open("data/" + PEELED_PDB_NAME + '_peeled.txt', 'r') as outPeel_1:
             content_peel = outPeel_1.read()
             print(content_peel)
             lines_peel = content_peel.split('\n')
@@ -289,22 +340,26 @@ if __name__ == "__main__":
         os.mkdir(results)
 
     # Copy pdb files towards results/ :
-    os.system("cp data/" + pdbName_1 + ".pdb results/")
-    os.system("cp data/" + pdbName_2 + ".pdb results/")
+    os.system("cp " + PEELED_PDB_PATH + " results/")
+    os.system("cp " + REF_PDB_PATH + " results/")
 
     # We start by making a simple TMalignment between both pdb:
-    TM_align(pdbName_1, pdbName_2)
-    TM_to_pdb(pdbName_1)
+    TMscore_ref = TM_align(PEELED_PDB_NAME, REF_PDB_NAME)
+    TM_to_pdb(PEELED_PDB_NAME)
+    print("REF", TMscore_ref)
 
 
     level = 0
+    res_levels = []
+
     for line in lines_peel:
         if line and line[0] != '#': # There is 1 element with empty str
             level += 1
 
-            if level == 3:
+            #if level == 3:
+            if True:
                 dict_all_PU = peeled_to_dict(line)
-                generate_PU_pdbs(dict_all_PU, level, dictCoord_1, pdbName_1)
+                generate_PU_pdbs(dict_all_PU, level, dictCoord_1, PEELED_PDB_NAME)
 
                 already_selcted = []
                 nb_tot_PU = len(dict_all_PU)
@@ -313,15 +368,17 @@ if __name__ == "__main__":
                 for i in range(nb_tot_PU):
                 #for i in range(2):
                     bestAlgnd_PU = get_bestAlgnd_PU(dict_all_PU, already_selcted,
-                                                    pdbName_1, pdbName_2, level)
+                                                    PEELED_PDB_NAME, REF_PDB_NAME, level)
                     already_selcted.append(bestAlgnd_PU)
-                    PU_name_max = pdbName_1 + "_PU_" + str(level) + '_' + str(bestAlgnd_PU)
-                    print(PU_name_max)
 
-                    set_to_discard = test(bestAlgnd_PU, level)
+                    set_to_discard = process_TMalign_files(bestAlgnd_PU, level, PEELED_PDB_NAME)
 
                     # Rewrite a pdb file (the reference one) with already aligned atoms
                     # deleted (corresponding to chain B):
-                    erase_algned(dictCoord_2, set_to_discard, pdbName_2)
+                    erase_algned(dictCoord_2, set_to_discard, REF_PDB_NAME)
 
-            #os.system()
+                #os.remove("PU_" + str(level) + "_algnd")
+                res_levels.append(TM_score(level, REF_PDB_NAME))
+
+    print(res_levels)
+    display_curve(res_levels, range(1, len(res_levels)+1), REF_PDB_NAME)
