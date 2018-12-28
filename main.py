@@ -68,7 +68,8 @@ def TM_to_pdb(pdb_name):
         pdb_name: Name (str) of the 1st pdb (the one to get the aligned coordinates)
     """
     with open("results/" + pdb_name + ".sup_all_atm") as all_atm_file, \
-         open("results/" + pdb_name + '.pdb', 'w') as pdb_out:
+         open("results/" + pdb_name + '.pdb', 'w') as pdb_out, \
+         open("results/" + pdb_name + '_algnd.pdb', 'w') as pdb_out_algnd:
         for line in all_atm_file:
             resName = line[17:20].strip()
             resID_pdb = line[22:26]
@@ -78,9 +79,11 @@ def TM_to_pdb(pdb_name):
                chain_ID = line[21:22].strip()
                if chain_ID == "A":
                    pdb_out.write(line)
+                   pdb_out_algnd.write(line)
 
     # Remove ".sup_all_atm" file (now useless):
-    os.remove("results/" + pdb_name + ".sup_all_atm")
+    # os.remove("results/" + pdb_name + ".sup_all_atm")
+    os.remove("results/" + pdb_name + ".sup_atm")
 
 
 def peeled_to_dict(line):
@@ -90,13 +93,13 @@ def peeled_to_dict(line):
     of the considered PU
 
     Args:
-        line: A line (str) from thsplitted_line[5:]e output of peeling
+        line: A line (str) from the output of the peeling program
 
     Returns:
         A dict with {PU_number:[inf_bound, sup_bound]}
     """
-    splitted_line = [ int(elem) for elem in line.split()[4:] ]
-    nb_tot_PU, all_bounds = splitted_line[0], splitted_line[1:]
+    all_bounds = [ int(elem) for elem in line.split()[5:] ]
+    nb_tot_PU = len(all_bounds)/2
     i, nb_current_PU = 0, 1
     dict_PU = {}
 
@@ -154,15 +157,16 @@ def get_bestAlgnd_PU(dict_PU, already_selcted, peeled_pdb_name, ref_pdb_name, le
 
     for i in range(nb_PU):
         if (i+1) not in already_selcted:
-            PU_name = PEELED_PDB_NAME + "_PU_" + str(level) + '_' + str(i+1)
-            arr_scores[i] = TM_align(PU_name, REF_PDB_NAME)
+            PU_name = PEELED_PDB_ID + "_PU_" + str(level) + '_' + str(i+1)
+            arr_scores[i] = TM_align(PU_name, REF_PDB_ID)
 
+    print(arr_scores)
     nb_maxScore_PU = np.argmax(arr_scores) + 1
 
     # We can now delete all useless files:
     for i in range(nb_PU):
         if (i+1) != nb_maxScore_PU:
-            PU_name = PEELED_PDB_NAME + "_PU_" + str(level) + '_' + str(i+1)
+            PU_name = PEELED_PDB_ID + "_PU_" + str(level) + '_' + str(i+1)
 
             if os.path.isfile("results/" + PU_name + ".sup_atm"):
                 os.remove("results/" + PU_name + ".sup_atm")
@@ -194,11 +198,23 @@ def process_TMalign_files(bestAlgnd_PU, level, peeled_pdb_name):
     algnd_filename = 'PU_' + str(level) + '_algnd.pdb'
     PU_name_max = peeled_pdb_name + "_PU_" + str(level) + '_' + str(bestAlgnd_PU)
 
-    with open('results/' + PU_name_max + '.sup_atm', 'r') as out_TM_max,\
-         open('results/' + algnd_filename, 'a') as aligned_PU:
+    with open('results/' + PU_name_max + '.sup_atm', 'r') as sup_max:
         set_to_discard = set()
 
-        for line in out_TM_max:
+        for line in sup_max:
+            if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+               ( (resName == "MET") or resName == "MSE") ):
+               chain_ID = line[21:22].strip()
+
+               if chain_ID == "B":
+                   # Get atoms of reference pdb that are aligned, they will be
+                   # discarded (corresponding to chain B):
+                   set_to_discard.add(line[22:26].strip())
+
+    with open('results/' + PU_name_max + '.sup_all_atm', 'r') as sup_all_max, \
+         open('results/' + algnd_filename, 'a') as aligned_PU:
+
+        for line in sup_all_max:
             if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
                ( (resName == "MET") or resName == "MSE") ):
                chain_ID = line[21:22].strip()
@@ -207,23 +223,23 @@ def process_TMalign_files(bestAlgnd_PU, level, peeled_pdb_name):
                    # Send chain A into the file getering all aligned PUs:
                    aligned_PU.write(line)
 
-               elif chain_ID == "B":
-                   set_to_discard.add(line[22:26].strip())
-
         # aligned_PU.write("TER\n")
+
     os.remove('results/' + PU_name_max + '.sup_atm')
+    os.remove('results/' + PU_name_max + '.sup_all_atm')
+
     return set_to_discard
 
 
 def erase_algned(dict_coord, set_to_discard, pdb_name):
     """
-    Write a new reference pdb file, by writing only the residues that have not been
-    aligned yet
+    Write a new reference pdb file, by writing only the residues that have not
+    been aligned yet
 
     Args:
         dict_coord: Dict containing the coordinates of the reference pdb
-        set_to_discard: The ensemble (set) of residues that have been aligned against
-        the PU (so that must not to written)
+        set_to_discard: The ensemble (set) of residues that have been aligned
+        against the PU (so that must not to written)
         pdb_name: Name (str) of the reference pdb to create
     """
     with open('results/' + pdb_name + '.pdb', 'w') as pdb_file:
@@ -236,7 +252,7 @@ def erase_algned(dict_coord, set_to_discard, pdb_name):
                 pdb_file.write(dict_coord[resID][1])
 
 
-def TM_score(level, ref_pdb_name):
+def TM_score(level, ref_pdb_path):
     """
     Using the TMscore binary, calculate the TMscore of a given pdb, containing
     all aligned PUs and the reference pdb (so no alignment is processed)
@@ -249,15 +265,15 @@ def TM_score(level, ref_pdb_name):
         The value of the associated TMscore
     """
     PU_alignd_file = "PU_" + str(level) + "_algnd"  + '.pdb'
-    cmdLine_TM = ("bin/TMscore32 results/" + PU_alignd_file + " results/" +
-                  ref_pdb_name + '.pdb')
+    cmdLine_TM = ("bin/TMscore32 results/" + PU_alignd_file + " " +
+                  ref_pdb_path)
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
     # print(lines_TM)
 
-    regex_TMscore = re.compile("(?:TM-score.+= )([0]\.[0-9]*)")
+    regex_TMscore = re.compile("(?:TM-score.+= )([0-9]\.[0-9]*)[ $]")
     searchObj = re.search(regex_TMscore, lines_TM)
-
+    # print(searchObj.group(1))
     return float(searchObj.group(1))
 
 
@@ -298,17 +314,14 @@ if __name__ == "__main__":
 
     PEELED_PDB = os.path.basename(PEELED_PDB_PATH)
     REF_PDB = os.path.basename(REF_PDB_PATH)
-    PEELED_PDB_NAME = os.path.splitext(PEELED_PDB)[0] #"1aoh"
-    REF_PDB_NAME = os.path.splitext(REF_PDB)[0] #"1jlx"
+    PEELED_PDB_ID = os.path.splitext(PEELED_PDB)[0] #"1aoh"
+    REF_PDB_ID = os.path.splitext(REF_PDB)[0] #"1jlx"
 
-    # Creation of dssp file:
-    if not os.path.isfile("data/" + PEELED_PDB_NAME + ".dss"):
-        os.system("bin/dssp " + PEELED_PDB_PATH + " > data/" + PEELED_PDB_NAME +
+    # Creation of dssp file (needed for peeling):
+    if not os.path.isfile("data/" + PEELED_PDB_ID + ".dss"):
+        os.system("bin/dssp32 -i " + PEELED_PDB_PATH + " > data/" + PEELED_PDB_ID +
                   ".dss")
-    if not os.path.isfile("data/" + REF_PDB_NAME + ".dss"):
-        os.system("bin/dssp " + REF_PDB_PATH + " > data/" + REF_PDB_NAME +
-                  ".dss")
-    sys.exit()
+
 
     with open(PEELED_PDB_PATH) as pdbFile_peeled, \
          open(REF_PDB_PATH) as pdbFile_ref:
@@ -320,65 +333,85 @@ if __name__ == "__main__":
     if a_la_fac:
         # Peeling:idxMax+1
         cmdLine_peel = ("bin/peeling11_4.1 -pdb " + PEELED_PDB_PATH +
-                        " -dssp data/" + REF_PDB_NAME + ".dss"
+                        " -dssp data/" + PEELED_PDB_ID + ".dss"
                         " -R2 98 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5"
-                        " -oss 0 -p 0 -cp 0 -npu  16")
+                        " -oss 0 -p 0 -cp 0 -npu 16")
         # The split function of the shlex module is used to generate a list of args:
         # os.system(cmd_line)
         #out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
-        outPeel_1 = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
-        lines_peel = outPeel_1.decode().split('\n')
+        # outPeel_1 = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
+        # lines_peel = outPeel_1.decode().split('\n')
 
     else:
-        with open("data/" + PEELED_PDB_NAME + '_peeled.txt', 'r') as outPeel_1:
-            content_peel = outPeel_1.read()
-            print(content_peel)
-            lines_peel = content_peel.split('\n')
+        cmdLine_peel = ("bin/peel32 " + PEELED_PDB_PATH + " data/" +
+                        PEELED_PDB_ID + ".dss 98 8 20 0 6.0 1.5 0 0 0")
+        # with open("data/" + PEELED_PDB_ID + '_peeled.txt', 'r') as outPeel_1:
+        #     content_peel = outPeel_1.read()
+        #     print(content_peel)
+        #     lines_peel = content_peel.split('\n')
+
+    outPeel_1 = sub.Popen(cmdLine_peel.split(),
+                          stdout=sub.PIPE).communicate()[0]
+    # print(outPeel_1.decode())
+    outPeel_w_dies = outPeel_1.decode().split('\n')
+    out_peel = [line for line in outPeel_w_dies if line and line[0] != '#']
+
+    # Remove files generated by peel32:
+    if not a_la_fac:
+        os.remove("file_ca_coo.pdb")
+        os.remove("file_proba_contact.mat")
 
     # Creation of the results/ directory:
     if not os.path.isdir("results"):
-        os.mkdir(results)
+        os.mkdir("results")
 
     # Copy pdb files towards results/ :
     os.system("cp " + PEELED_PDB_PATH + " results/")
     os.system("cp " + REF_PDB_PATH + " results/")
 
     # We start by making a simple TMalignment between both pdb:
-    TMscore_ref = TM_align(PEELED_PDB_NAME, REF_PDB_NAME)
-    TM_to_pdb(PEELED_PDB_NAME)
+    TMscore_ref = TM_align(PEELED_PDB_ID, REF_PDB_ID)
+    os.remove("results/" + PEELED_PDB)
+    # os.remove("results/" + REF_PDB)
+    # TM_to_pdb(PEELED_PDB_ID)
+    # sys.exit()
     print("REF", TMscore_ref)
 
 
     level = 0
     res_levels = []
+    list_nb_PU = []
 
-    for line in lines_peel:
-        if line and line[0] != '#': # There is 1 element with empty str
-            level += 1
+    for line in out_peel:
+        level += 1
 
-            #if level == 3:
-            if True:
-                dict_all_PU = peeled_to_dict(line)
-                generate_PU_pdbs(dict_all_PU, level, dictCoord_1, PEELED_PDB_NAME)
+        dict_all_PU = peeled_to_dict(line)
+        generate_PU_pdbs(dict_all_PU, level, dictCoord_1, PEELED_PDB_ID)
 
-                already_selcted = []
-                nb_tot_PU = len(dict_all_PU)
+        already_selcted = []
+        nb_tot_PU = len(dict_all_PU)
 
-                # Then we loop on the number of PUs, to repeat the process
-                for i in range(nb_tot_PU):
-                #for i in range(2):
-                    bestAlgnd_PU = get_bestAlgnd_PU(dict_all_PU, already_selcted,
-                                                    PEELED_PDB_NAME, REF_PDB_NAME, level)
-                    already_selcted.append(bestAlgnd_PU)
+        # Then we loop on the number of PUs, to repeat the process
+        for i in range(nb_tot_PU):
+        #for i in range(2):
+            bestAlgnd_PU = get_bestAlgnd_PU(dict_all_PU,
+                                            already_selcted,
+                                            PEELED_PDB_ID, REF_PDB_ID,
+                                            level)
+            already_selcted.append(bestAlgnd_PU)
 
-                    set_to_discard = process_TMalign_files(bestAlgnd_PU, level, PEELED_PDB_NAME)
+            set_to_discard = process_TMalign_files(bestAlgnd_PU, level,
+                                                   PEELED_PDB_ID)
 
-                    # Rewrite a pdb file (the reference one) with already aligned atoms
-                    # deleted (corresponding to chain B):
-                    erase_algned(dictCoord_2, set_to_discard, REF_PDB_NAME)
+            # Rewrite a pdb file (the reference one) with already
+            # -aligned atoms deleted (corresponding to chain B):
+            erase_algned(dictCoord_2, set_to_discard, REF_PDB_ID)
 
-                #os.remove("PU_" + str(level) + "_algnd")
-                res_levels.append(TM_score(level, REF_PDB_NAME))
+        #os.remove("PU_" + str(level) + "_algnd")
+        res_levels.append(TM_score(level, REF_PDB_PATH))
+        list_nb_PU.append(nb_tot_PU)
 
     print(res_levels)
-    display_curve(res_levels, range(1, len(res_levels)+1), REF_PDB_NAME)
+    # print(np.array(res_levels)/np.array(nb_tot_PU))
+    #display_curve(res_levels, range(1, len(res_levels)+1), REF_PDB_ID+" (levels)")
+    display_curve(res_levels, list_nb_PU, REF_PDB_ID+" (nb_PU)")

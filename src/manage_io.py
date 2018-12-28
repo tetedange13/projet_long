@@ -68,9 +68,3 @@ def parse_pdb(pdb_file):
                 dict_coord[resID][1] += line
 
     return dict_coord
-
-
-
-if __name__ == "__main__":
-    with open("data/1aoh.pdb", 'r') as pdb_file:
-        parse_pdb(pdb_file)
