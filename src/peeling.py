@@ -7,6 +7,9 @@ generation of the PU found
 
 import os
 import subprocess as sub
+import src.manage_io as mio
+import numpy as np
+import src.external as ext
 
 
 global a_la_fac
@@ -94,3 +97,177 @@ def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_name):
 
             for resID in range(inf_bound, sup_bound+1):
                 out_PU.write(dict_coord_peeled[resID][1])
+
+
+def get_bestAlgnd_PU(nb_PU, already_selcted, peeled_pdb_id, ref_pdb_id, level):
+    """
+    Align the different PU (that need to be aligned) against the reference pdb
+    (using TMalign) and get the number of the PU that has the maximum TMscore
+
+    Args:
+        nb_PU: Total number of PU at this given level
+        already_selcted: List of the PU that have already been aligned and
+        chose as best aligned PU
+        peeled_pdb_id: PDB ID (str) of the PDB that have been peeled
+        ref_pdb_id: PDB ID (str) of the PDB to align against
+        level: Current level (int) considered
+
+    Returns:
+        Index of the PU that is best aligned with the given PDB file
+    """
+    arr_scores = np.zeros(nb_PU, dtype=float) # To be able to use argmax()
+    # Already aligned PU have their value set to -1 (will never be the max):
+    for nb_PU_algnd in already_selcted:
+        arr_scores[nb_PU_algnd-1] = -1
+
+    for i in range(nb_PU):
+        if (i+1) not in already_selcted:
+            PU_name = peeled_pdb_id + "_PU_" + str(level) + '_' + str(i+1)
+            arr_scores[i] = ext.TM_align(PU_name, ref_pdb_id)
+
+    # print(arr_scores)
+    return np.argmax(arr_scores) + 1
+
+
+def process_TMalign_files(bestAlgnd_PU, level, peeled_pdb_id, nb_PU):
+    """
+    Take the number of the best aligned PU, open the associated TM_file and with
+    it:
+        * Append the file gethering all aligned PU with the coordinates of this
+        new PU
+        * Get the resID of residues that need to be erased from the pdb (the one
+        that PU are aligned against)
+
+    Args:
+        bestAlgnd_PU: The number (int) of the PU that has been determined as the
+        one best aligned
+        level: The current level considered (int)
+        peeled_pdb_id: Name (str) of the PDB that have been peeled
+        nb_PU: Total number of PU at this given level
+
+    Returns:
+        The ensemble (set) of residues that needs to be erased from the
+        reference pdb (by their resID)
+    """
+    algnd_filename = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+    PU_name_max = peeled_pdb_id + "_PU_" + str(level) + '_' + str(bestAlgnd_PU)
+
+    with open('results/' + PU_name_max + '.sup_atm', 'r') as sup_max:
+        set_to_discard = set()
+
+        for line in sup_max:
+            if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+               ( (resName == "MET") or resName == "MSE") ):
+               chain_ID = line[21:22].strip()
+
+               if chain_ID == "B":
+                   # Get atoms of reference pdb that are aligned, they will be
+                   # discarded (corresponding to chain B):
+                   set_to_discard.add(line[22:26].strip())
+
+    with open('results/' + PU_name_max + '.sup_all_atm', 'r') as sup_all_max, \
+         open('results/' + algnd_filename, 'a') as aligned_PU:
+
+        for line in sup_all_max:
+            if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
+               ( (resName == "MET") or resName == "MSE") ):
+               chain_ID = line[21:22].strip()
+
+               if chain_ID == "A":
+                   # Send chain A into the file getering all aligned PUs:
+                   aligned_PU.write(line)
+
+        aligned_PU.write("TER\n")
+
+    # We can now delete all useless files:
+    for i in range(nb_PU):
+            PU_name = peeled_pdb_id + "_PU_" + str(level) + '_' + str(i+1)
+
+            if os.path.isfile("results/" + PU_name + ".sup_atm"):
+                os.remove("results/" + PU_name + ".sup_atm")
+            if os.path.isfile("results/" + PU_name + ".sup_all_atm"):
+                os.remove("results/" + PU_name + ".sup_all_atm")
+
+    return set_to_discard
+
+
+def erase_algned(dict_coord, set_to_discard, pdb_name):
+    """
+    Write a new reference pdb file, by writing only the residues that have not
+    been aligned yet
+
+    Args:
+        dict_coord: Dict containing the coordinates of the reference pdb
+        set_to_discard: The ensemble (set) of residues that have been aligned
+        against the PU (so that must not to written)
+        pdb_name: Name (str) of the reference pdb to create
+    """
+    with open('results/' + pdb_name + '.pdb', 'w') as pdb_file:
+        resIDs = dict_coord.keys()
+
+        for resID in resIDs:
+            resID_pdb = dict_coord[resID][0]
+
+            if resID_pdb not in set_to_discard:
+                pdb_file.write(dict_coord[resID][1])
+
+
+def toto(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
+    """
+    """
+    # We need a safe copy of the ref pdb, for further TMscore use:
+    os.system("cp " + ref_pdb_path + " results/" + ref_pdb_id + "_safe.pdb")
+
+    # Creation of dssp file (needed for peeling):
+    if not os.path.isfile("data/" + peeled_pdb_id + ".dss"):
+        os.system("bin/dssp32 -i " + peeled_pdb_path + " > data/" +
+                  peeled_pdb_id + ".dss")
+
+    # Peeling:
+    out_peel = peeling(peeled_pdb_path, peeled_pdb_id)
+
+    # Get lines from the pdb (avoid several open):
+    with open(peeled_pdb_path) as pdbFile_peeled, \
+         open(ref_pdb_path) as pdbFile_ref:
+        dictCoord_peeled = mio.parse_pdb(pdbFile_peeled)
+        dictCoord_ref = mio.parse_pdb(pdbFile_ref)
+
+
+    level = 0
+    res_levels = []
+    list_nb_PU = []
+
+    for line in out_peel:
+        level += 1
+        print("Proceeding peeling level", level)
+
+        dict_all_PU = peeled_to_dict(line)
+        generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
+
+        already_selcted = []
+        nb_tot_PU = len(dict_all_PU)
+
+        # Then we loop on the number of PUs, to repeat the process
+        for i in range(nb_tot_PU):
+        #for i in range(1):
+            bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU,
+                                            already_selcted,
+                                            peeled_pdb_id, ref_pdb_id,
+                                            level)
+            already_selcted.append(bestAlgnd_PU)
+
+            set_to_discard = process_TMalign_files(bestAlgnd_PU, level,
+                                                   peeled_pdb_id, nb_tot_PU)
+
+            # Rewrite a pdb file (the reference one) with already
+            # -aligned atoms deleted (corresponding to chain B):
+            erase_algned(dictCoord_ref, set_to_discard, ref_pdb_id)
+
+        #os.remove("PU_" + str(level) + "_algnd")
+        PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+        res_levels.append(ext.TM_score("results/" + PU_alignd_file,
+                                       "results/" + ref_pdb_id + '_safe.pdb'))
+        list_nb_PU.append(nb_tot_PU)
+
+
+    return (res_levels, list_nb_PU)
