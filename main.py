@@ -20,18 +20,30 @@ import src.manage_io as mio
 import re
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tck
+import src.peeling as pl
 
 
-def extract_first_chain(pdb_path, first_chain_id):
+def extract_chain(pdb_path, chain_id='first'):
     """
+    If the parameter "chain_id" is not specified, the default behaviour is todo
+    extract the 1st chain from the pdb
 
+    Args:
+        pdb_path: Path (str) to the pdb file, from which the chain will be
+        extracted
+        chain_id: The ID (str, 1 or 2 letters) of the chain to extract
+
+    Returns:
+        The name of the file (with .pdb extension)
+        The pdb id (without .pdb extension)
     """
     pdb_name = os.path.basename(pdb_path) # With .pdb extension
     pdb_id = os.path.splitext(pdb_name)[0] # Without .pdb extension
+    out_filename = "results/" + pdb_id + chain_id + '.pdb'
 
     with open(pdb_path, 'r') as pdb_in, \
-         open("results/" + pdb_id + first_chain_id + '.pdb', 'w') as pdb_out:
-        flag = True
+         open(out_filename, 'w') as pdb_out:
+        i = 0
 
         for line in pdb_in:
             resName = line[17:20].strip()
@@ -40,13 +52,33 @@ def extract_first_chain(pdb_path, first_chain_id):
             if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
                         ( (resName == "MET") or resName == "MSE") ):
                chain_ID = line[21:22].strip()
+               i += 1
 
-               if chain_ID == first_chain_id:
-                   pdb_out.write(line)
+               if chain_id == 'first':
+                   if i == 1: # If it is the 1st ATOM line read
+                       first_chain_id = chain_ID
+
+                   if chain_ID == first_chain_id:
+                       pdb_out.write(line)
+                   else:
+                       break
+
                else:
-                   break
+                   if chain_ID == chain_id:
+                       pdb_out.write(line)
 
-    return (pdb_id + first_chain_id + '.pdb', pdb_id + first_chain_id)
+    if not os.stat(out_filename).st_size: # If the file is empty
+        print("ERROR! The chain ID you specified does not belong to " +
+              pdb_path + ' !\n')
+        os.remove(out_filename) # Clean the empty file
+        sys.exit(1)
+
+    if chain_id == 'first':
+        os.system("mv " + out_filename + " results/" + pdb_id +
+                  first_chain_id + '.pdb')
+        return (pdb_id + first_chain_id + '.pdb', pdb_id + first_chain_id)
+
+    return (pdb_id + chain_id + '.pdb', pdb_id + chain_id)
 
 
 def TM_score(peeled_pdb_path, ref_pdb_path):
@@ -78,98 +110,20 @@ def TM_score(peeled_pdb_path, ref_pdb_path):
 
 
 def parMATT(peeled_pdb_path, ref_pdb_path):
-    os.system("bin/parMATT/bin/parMatt32 " + peeled_pdb_path + " " +
-              ref_pdb_path + " -t 1 -o output")
-    os.remove("output.spt")
-    os.remove("output.fasta")
+    cmdLine_parMatt = ("bin/parMATT/bin/parMatt32 " + peeled_pdb_path + " " +
+                       ref_pdb_path + " -t 1 -o output")
+    out_parMatt = sub.Popen(cmdLine_parMatt.split(),
+                            stdout=sub.PIPE).communicate()[0]
+    # print(out_parMatt.decode())
 
-    PEELED_PDB, PEELED_PDB_ID = extract_first_chain("output.pdb", "A")
-    REF_PDB, REF_PDB_ID = extract_first_chain("output.pdb", "B")
-    os.remove("output.pdb")
+    PEELED_PDB, PEELED_PDB_ID = extract_chain("output.pdb", "A")
+    REF_PDB, REF_PDB_ID = extract_chain("output.pdb", "B")
 
-    print(TM_score("results/" + PEELED_PDB, "results/" + REF_PDB))
+    # Remove useless files produced by parMATT:
+    for ext in ('pdb', 'spt', 'fasta', 'txt'):
+        os.remove("output." + ext)
 
-
-def peeling(peeled_pdb_path, peeled_pdb_id):
-    """
-    """
-    if a_la_fac:
-        cmdLine_peel = ("bin/peeling11_4.1 -pdb " + peeled_pdb_path +
-                        " -dssp data/" + peeled_pdb_id + ".dss"
-                        " -R2 98 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5"
-                        " -oss 0 -p 0 -cp 0 -npu 16")
-        # The split function of the shlex module is used to generate a list of args:
-        # os.system(cmd_line)
-        #out, err = sub.Popen(shx.split(cmd_line), stdout=sub.PIPE).communicate()
-        # outPeel_1 = sub.Popen(cmdLine_peel.split(), stdout=sub.PIPE).communicate()[0]
-        # lines_peel = outPeel_1.decode().split('\n')
-
-    else:
-        cmdLine_peel = ("bin/peel32 " + peeled_pdb_path + " data/" +
-                        peeled_pdb_id + ".dss 98 8 20 0 6.0 1.5 0 0 0")
-        # with open("data/" + peeled_pdb_id + '_peeled.txt', 'r') as outPeel_1:
-        #     content_peel = outPeel_1.read()
-        #     print(content_peel)
-        #     lines_peel = content_peel.split('\n')
-
-    outPeel_sub = sub.Popen(cmdLine_peel.split(),
-                          stdout=sub.PIPE).communicate()[0]
-    print(outPeel_sub.decode())
-    outPeel_w_dies = outPeel_sub.decode().split('\n')
-
-    # Remove files generated by peel32:
-    if not a_la_fac:
-        os.remove("file_ca_coo.pdb")
-        os.remove("file_proba_contact.mat")
-
-    return [line for line in outPeel_w_dies if line and line[0] != '#']
-
-
-def peeled_to_dict(line):
-    """
-    Take a line from the peeling output and return a dictionary, where each key
-    is the number of the PU (so starting at 1), with the value being the bounds
-    of the considered PU
-
-    Args:
-        line: A line (str) from the output of the peeling program
-
-    Returns:
-        A dict with {PU_number:[inf_bound, sup_bound]}
-    """
-    all_bounds = [ int(elem) for elem in line.split()[5:] ]
-    nb_tot_PU = len(all_bounds)/2
-    i, nb_current_PU = 0, 1
-    dict_PU = {}
-
-    while nb_current_PU <= nb_tot_PU:
-        dict_PU[nb_current_PU] = all_bounds[i:i+2]
-        i += 2
-        nb_current_PU += 1
-
-    return dict_PU
-
-
-def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_name):
-    """
-    Generate different pdb file, associated to each PU, based to the boundaries
-    given as output of the peeling program
-
-    Args:
-        dict_PU: Dict containing the boundaries of each PU at a given level
-        level_cut: The current level considered (int)
-        dict_coord_peeled: Coordinates of the peeled pdb (dict)
-        peeled_pdb_name: Name (str) of the PDB that have been peeled
-    """
-    nb_PU = len(dict_PU)
-
-    for i in range(1, nb_PU+1):
-        out_file = "results/" + peeled_pdb_name + "_PU_" + str(level_cut)
-        with open(out_file + '_' + str(i) + '.pdb', 'w') as out_PU:
-            inf_bound, sup_bound = dict_PU[i]
-
-            for resID in range(inf_bound, sup_bound+1):
-                out_PU.write(dict_coord_peeled[resID][1])
+    return TM_score("results/" + PEELED_PDB, "results/" + REF_PDB)
 
 
 def TM_align(PU_name, ref_pdb_name):
@@ -199,33 +153,6 @@ def TM_align(PU_name, ref_pdb_name):
         os.remove("results/" + PU_name + ext)
 
     return float(searchObj.group(1))
-
-
-def TM_to_pdb(pdb_name):
-    """
-    Open an output file from TMalign and extract the chain A, corresponding to
-    the 1st pdb now aligned on the reference pdb
-
-    Args:
-        pdb_name: Name (str) of the 1st pdb (the one to get the aligned coordinates)
-    """
-    with open("results/" + pdb_name + ".sup_all_atm") as all_atm_file, \
-         open("results/" + pdb_name + '.pdb', 'w') as pdb_out, \
-         open("results/" + pdb_name + '_algnd.pdb', 'w') as pdb_out_algnd:
-        for line in all_atm_file:
-            resName = line[17:20].strip()
-            resID_pdb = line[22:26]
-
-            if (line[0:4] == "ATOM") or ((line[0:6] == "HETATM") and
-               ( (resName == "MET") or resName == "MSE") ):
-               chain_ID = line[21:22].strip()
-               if chain_ID == "A":
-                   pdb_out.write(line)
-                   pdb_out_algnd.write(line)
-
-    # Remove ".sup_all_atm" file (now useless):
-    # os.remove("results/" + pdb_name + ".sup_all_atm")
-    os.remove("results/" + pdb_name + ".sup_atm")
 
 
 def get_bestAlgnd_PU(nb_PU, already_selcted, peeled_pdb_name, ref_pdb_name, level):
@@ -374,7 +301,7 @@ def calc_slope(list_x, list_y):
 
     return (y2-y1)/(x2-x1)
 
-def get_best_level(res_levels, list_nb_PU):
+def get_best_level_2(res_levels, list_nb_PU):
     nb_levels = len(res_levels)
 
     if nb_levels == 1: # If only 1 level found for the protein peeled
@@ -387,6 +314,76 @@ def get_best_level(res_levels, list_nb_PU):
             i += 1
 
 
+def get_best_level(res_levels, list_nb_PU):
+    nb_levels = len(res_levels)
+
+    if nb_levels == 1: # If only 1 level found for the protein peeled
+        return 0
+
+    else:
+        ratio_score_nbPU = np.array(res_levels)/np.array(list_nb_PU)
+        return np.argmax(ratio_score_nbPU)
+
+
+def toto(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
+    """
+    """
+    # We need a safe copy of the ref pdb, for further TMscore use:
+    os.system("cp " + ref_pdb_path + " results/" + ref_pdb_id + "_safe.pdb")
+
+    # Creation of dssp file (needed for peeling):
+    if not os.path.isfile("data/" + peeled_pdb_id + ".dss"):
+        os.system("bin/dssp32 -i " + peeled_pdb_path + " > data/" +
+                  peeled_pdb_id + ".dss")
+
+    # Peeling:
+    out_peel = pl.peeling(peeled_pdb_path, peeled_pdb_id)
+
+    # Get lines from the pdb (avoid several open):
+    with open(peeled_pdb_path) as pdbFile_peeled, \
+         open(ref_pdb_path) as pdbFile_ref:
+        dictCoord_peeled = mio.parse_pdb(pdbFile_peeled)
+        dictCoord_ref = mio.parse_pdb(pdbFile_ref)
+
+
+    level = 0
+    res_levels = []
+    list_nb_PU = []
+
+    for line in out_peel:
+        level += 1
+        print("Proceeding peeling level", level)
+
+        dict_all_PU = pl.peeled_to_dict(line)
+        pl.generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
+
+        already_selcted = []
+        nb_tot_PU = len(dict_all_PU)
+
+        # Then we loop on the number of PUs, to repeat the process
+        for i in range(nb_tot_PU):
+        #for i in range(1):
+            bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU,
+                                            already_selcted,
+                                            peeled_pdb_id, ref_pdb_id,
+                                            level)
+            already_selcted.append(bestAlgnd_PU)
+
+            set_to_discard = process_TMalign_files(bestAlgnd_PU, level,
+                                                   peeled_pdb_id, nb_tot_PU)
+
+            # Rewrite a pdb file (the reference one) with already
+            # -aligned atoms deleted (corresponding to chain B):
+            erase_algned(dictCoord_ref, set_to_discard, ref_pdb_id)
+
+        #os.remove("PU_" + str(level) + "_algnd")
+        PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+        res_levels.append(TM_score("results/" + PU_alignd_file,
+                                   "results/" + ref_pdb_id + '_safe.pdb'))
+        list_nb_PU.append(nb_tot_PU)
+
+
+    return (res_levels, list_nb_PU)
 
 
 # MAIN:
@@ -401,87 +398,37 @@ if __name__ == "__main__":
         os.mkdir("results")
 
     # Extract first chain towards the results/ folder:
-    FIRST_CHAIN_ID_PEEL = "A"
-    FIRST_CHAIN_ID_REF = "A"
-    PEELED_PDB, PEELED_PDB_ID = extract_first_chain(TO_PEELED_PDB,
-                                                    FIRST_CHAIN_ID_PEEL)
-    REF_PDB, REF_PDB_ID = extract_first_chain(TO_REF_PDB, FIRST_CHAIN_ID_REF)
+    # FIRST_CHAIN_ID_PEEL = "A"
+    # FIRST_CHAIN_ID_REF = "A"
+    PEELED_PDB, PEELED_PDB_ID = extract_chain(TO_PEELED_PDB)
+    REF_PDB, REF_PDB_ID = extract_chain(TO_REF_PDB)
     PEELED_PDB_PATH = "results/" + PEELED_PDB
     REF_PDB_PATH = "results/" + REF_PDB
 
-    # We need a safe copy of the ref pdb, for further TMscore use:
-    os.system("cp " + REF_PDB_PATH + " results/" + REF_PDB_ID + "_safe.pdb")
-
-    # Creation of dssp file (needed for peeling):
-    if not os.path.isfile("data/" + PEELED_PDB_ID + ".dss"):
-        os.system("bin/dssp32 -i " + PEELED_PDB_PATH + " > data/" +
-                  PEELED_PDB_ID + ".dss")
-
-    with open(PEELED_PDB_PATH) as pdbFile_peeled, \
-         open(REF_PDB_PATH) as pdbFile_ref:
-        dictCoord_peeled = mio.parse_pdb(pdbFile_peeled)
-        dictCoord_ref = mio.parse_pdb(pdbFile_ref)
-
 
     # With parMATT:
-    parMATT(PEELED_PDB_PATH, REF_PDB_PATH)
-    sys.exit()
+    TM_parMATT = parMATT(PEELED_PDB_PATH, REF_PDB_PATH)
+    print("parMATT TMscore:", TM_parMATT)
 
+    # Peeling with TMalign:
+    res_peel, list_nb_PU = toto(REF_PDB_PATH, REF_PDB_ID,
+                                  PEELED_PDB_PATH, PEELED_PDB_ID)
 
-    a_la_fac = False
-    # Peeling:
-    out_peel = peeling(PEELED_PDB_PATH, PEELED_PDB_ID)
+    # Peeling with TMalign (other sense):
+    res_peel_rev, list_nb_PU_rev = toto(PEELED_PDB_PATH, PEELED_PDB_ID,
+                                  REF_PDB_PATH, REF_PDB_ID)
 
     # We start by making a simple TMalignment between both pdb:
     TMscore_ref = TM_align(PEELED_PDB_ID, REF_PDB_ID)
     for ext in ('.pdb', '.sup_atm', '.sup_all_atm'):
         os.remove("results/" + PEELED_PDB_ID + ext)
-    print("REF", TMscore_ref)
+    print("Simple TMscore:", TMscore_ref)
 
 
-
-    print("\nSALUT\n")
-
-    level = 0
-    res_levels = []
-    list_nb_PU = []
-
-    for line in out_peel:
-        level += 1
-
-        dict_all_PU = peeled_to_dict(line)
-        generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, PEELED_PDB_ID)
-
-        already_selcted = []
-        nb_tot_PU = len(dict_all_PU)
-
-        # Then we loop on the number of PUs, to repeat the process
-        #for i in range(nb_tot_PU):
-        for i in range(1):
-            bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU,
-                                            already_selcted,
-                                            PEELED_PDB_ID, REF_PDB_ID,
-                                            level)
-            already_selcted.append(bestAlgnd_PU)
-
-            set_to_discard = process_TMalign_files(bestAlgnd_PU, level,
-                                                   PEELED_PDB_ID, nb_tot_PU)
-
-            # Rewrite a pdb file (the reference one) with already
-            # -aligned atoms deleted (corresponding to chain B):
-            erase_algned(dictCoord_ref, set_to_discard, REF_PDB_ID)
-
-        #os.remove("PU_" + str(level) + "_algnd")
-        PU_alignd_file = PEELED_PDB_ID + '_PUs_algnd_' + str(level) + '.pdb'
-        res_levels.append(TM_score("results/" + PU_alignd_file,
-                                   "results/" + REF_PDB_ID + '_safe.pdb'))
-        list_nb_PU.append(nb_tot_PU)
-
-    print(res_levels)
-    get_best_level(res_levels, list_nb_PU)
-    ratio_score_nbPU = np.array(res_levels)/np.array(nb_tot_PU)
-    print(ratio_score_nbPU)
-    print(res_levels[np.argmax(ratio_score_nbPU)])
+    idx_best_level = get_best_level(res_levels, list_nb_PU)
+    idx_best_level_rev = get_best_level(res_levels_rev, list_nb_PU_rev)
+    print("Best peel TMscore:", res_peel[idx_best_level])
+    print("Best peel TMscore (rev):", res_peel_rev[idx_best_level_rev])
 
     #display_curve(res_levels, range(1, len(res_levels)+1), REF_PDB_ID+" (levels)")
     display_curve(res_levels, list_nb_PU, REF_PDB_ID+" (nb_PU)")
