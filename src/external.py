@@ -48,7 +48,7 @@ def parMATT(peeled_pdb_path, ref_pdb_path):
     REF_PDB, REF_PDB_ID = mio.extract_chain("output.pdb", "B")
 
     # Remove useless files produced by parMATT:
-    for extension in ('pdb', 'spt', 'fasta', 'txt'):
+    for extension in ('spt', 'fasta', 'txt'):
         os.remove("output." + extension)
 
     return TM_score("results/" + PEELED_PDB, "results/" + REF_PDB)

@@ -2,7 +2,7 @@
 
 """
 This module deals with input and output files to the program.
-It contains parsing and writing functions.
+It contains parsing and writting functions.
 """
 
 import os
@@ -94,3 +94,7 @@ def parse_pdb(pdb_file):
                 dict_coord[resID][1] += line
 
     return dict_coord
+
+
+def write_to():
+    pass

@@ -37,7 +37,7 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
         #     print(content_peel)
         #     lines_peel = content_peel.split('\n')
 
-    print("Peeling in progress...")
+    print("Peeling of " + peeled_pdb_id + " in progress...")
     outPeel_sub = sub.Popen(cmdLine_peel.split(),
                           stdout=sub.PIPE).communicate()[0]
     # print(outPeel_sub.decode())
@@ -48,7 +48,7 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
         os.remove("file_ca_coo.pdb")
         os.remove("file_proba_contact.mat")
 
-    print("Peeling done!\n")
+    print("Peeling done!")
     return [line for line in outPeel_w_dies if line and line[0] != '#']
 
 
@@ -77,7 +77,7 @@ def peeled_to_dict(line):
     return dict_PU
 
 
-def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_name):
+def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_id):
     """
     Generate different pdb file, associated to each PU, based to the boundaries
     given as output of the peeling program
@@ -86,12 +86,12 @@ def generate_PU_pdbs(dict_PU, level_cut, dict_coord_peeled, peeled_pdb_name):
         dict_PU: Dict containing the boundaries of each PU at a given level
         level_cut: The current level considered (int)
         dict_coord_peeled: Coordinates of the peeled pdb (dict)
-        peeled_pdb_name: Name (str) of the PDB that have been peeled
+        peeled_pdb_id: Name (str) of the PDB that have been peeled
     """
     nb_PU = len(dict_PU)
 
     for i in range(1, nb_PU+1):
-        out_file = "results/" + peeled_pdb_name + "_PU_" + str(level_cut)
+        out_file = "results/" + peeled_pdb_id + "_PU_" + str(level_cut)
         with open(out_file + '_' + str(i) + '.pdb', 'w') as out_PU:
             inf_bound, sup_bound = dict_PU[i]
 
@@ -212,8 +212,35 @@ def erase_algned(dict_coord, set_to_discard, pdb_name):
                 pdb_file.write(dict_coord[resID][1])
 
 
-def toto(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
+def get_best_level(res_peel, list_nb_PU):
     """
+    Get the index of the level that is the best (trade-off between high TMscore
+    and low number of PUs)
+
+    Args:
+        res_levels: Values (list) of the TMscores at each level
+        list_nb_PU: List of the number of PUs associated with each level
+
+    Returns:
+        The index of the best level
+    """
+    nb_levels = len(res_peel)
+    print(res_peel)
+
+    if nb_levels == 1: # If only 1 level found for the protein peeled
+        return 0
+
+    else:
+        ratio_score_nbPU = np.array(res_peel)/np.array(list_nb_PU)
+        return np.argmax(ratio_score_nbPU)
+
+
+def peeled_TMalign(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
+    """
+    Function gethering the whole process of "peeled-TMalignment"
+
+    Args:
+        ref_pdb_path:
     """
     # We need a safe copy of the ref pdb, for further TMscore use:
     os.system("cp " + ref_pdb_path + " results/" + ref_pdb_id + "_safe.pdb")
@@ -233,15 +260,14 @@ def toto(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
         dictCoord_ref = mio.parse_pdb(pdbFile_ref)
 
 
-    level = 0
     res_levels = []
     list_nb_PU = []
 
-    for line in out_peel:
-        level += 1
+    for idx in range(len(out_peel)):
+        level = idx + 1
         print("Proceeding peeling level", level)
 
-        dict_all_PU = peeled_to_dict(line)
+        dict_all_PU = peeled_to_dict(out_peel[idx])
         generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
 
         already_selcted = []
@@ -269,5 +295,5 @@ def toto(ref_pdb_path, ref_pdb_id, peeled_pdb_path, peeled_pdb_id):
                                        "results/" + ref_pdb_id + '_safe.pdb'))
         list_nb_PU.append(nb_tot_PU)
 
-
+    print('\n')
     return (res_levels, list_nb_PU)
