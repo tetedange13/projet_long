@@ -31,7 +31,7 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
         cmdLine_TM = ("bin/TMscore32 " + ref_pdb_path + " " + peeled_pdb_path)
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    # print(lines_TM)
+    print(lines_TM)
 
     regex_TMscore = re.compile("(?:TM-score.+= )([0-9]\.[0-9]*)[ $]")
     searchObj = re.search(regex_TMscore, lines_TM)

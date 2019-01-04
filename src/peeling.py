@@ -26,7 +26,7 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
 
     else:
         cmdLine_peel = ("bin/peel32 " + peeled_pdb_path + " data/" +
-                        peeled_pdb_id + ".dss 98 8 20 0 6.0 1.5 0 0 0")
+                        peeled_pdb_id + ".dss 95 8 20 0 6.0 1.5 1 0 0")
 
     print("Peeling of " + peeled_pdb_id + " in progress...")
     outPeel_sub = sub.Popen(cmdLine_peel.split(),
@@ -117,6 +117,9 @@ def get_bestAlgnd_PU(nb_PU, already_selcted, peeled_pdb_id, ref_pdb_id, level):
         if (i+1) not in already_selcted:
             PU_name = peeled_pdb_id + "_PU_" + str(level) + '_' + str(i+1)
             # The "peel_longer" param is set to , to avoid inversion
+            # Cmd Sophie's results:
+            # arr_scores[i] = ext.TM_align(PU_name, ref_pdb_id, False)
+            # Cmd other results:
             arr_scores[i] = ext.TM_align(PU_name, ref_pdb_id, True)
 
     # print(arr_scores)
@@ -287,9 +290,14 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
         PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
         # TMscore = ext.gdt_pl("results/" + PU_alignd_file,
         #                        "results/" + ref_pdb_id + '_safe.pdb')
+        # Cmd plus logique:
         TMscore = ext.TM_score("results/" + ref_pdb_id + '_safe.pdb',
                                "results/" + PU_alignd_file,
                                peel_longer)
+        # Cmd resultats Sophie:
+        # TMscore = ext.TM_score("results/" + PU_alignd_file,
+        #                        "results/" + ref_pdb_id + '_safe.pdb',
+        #                        peel_longer)
         res_levels.append(TMscore)
         list_nb_PU.append(nb_tot_PU)
 
