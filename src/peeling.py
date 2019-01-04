@@ -27,10 +27,6 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
     else:
         cmdLine_peel = ("bin/peel32 " + peeled_pdb_path + " data/" +
                         peeled_pdb_id + ".dss 98 8 20 0 6.0 1.5 0 0 0")
-        # with open("data/" + peeled_pdb_id + '_peeled.txt', 'r') as outPeel_1:
-        #     content_peel = outPeel_1.read()
-        #     print(content_peel)
-        #     lines_peel = content_peel.split('\n')
 
     print("Peeling of " + peeled_pdb_id + " in progress...")
     outPeel_sub = sub.Popen(cmdLine_peel.split(),
@@ -241,6 +237,8 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
 
     Args:
         ref_pdb_path:
+        peel_longer: Boolean telling if the peeled protein is longer (or not)
+        than the reference protein
     """
     # We need a safe copy of the ref pdb, to reset it at each level:
     os.system("cp " + ref_pdb_path + " results/" + ref_pdb_id + "_safe.pdb")
@@ -292,16 +290,17 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
         res_levels.append(TMscore)
         list_nb_PU.append(nb_tot_PU)
 
-        # Delete pdb files:
-        # os.remove("results/" + ref_pdb_id + '.pdb')
+        # Replace ref pdb file with the original one:
         os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
                   ref_pdb_id + '.pdb')
-        # import sys ; sys.exit()
-        # Of the PUs
+
+        # Remove pdb files of the PUs of the current files
         for i in range(nb_tot_PU):
-            pass
-            # os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
-                      # str(i+1) + '.pdb')
+            os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
+                      str(i+1) + '.pdb')
+
+    # os.remove('results/' + peeled_pdb_id + '_safe.pdb')
+    os.remove('results/' + ref_pdb_id + '_safe.pdb')
 
     print('\n')
     return (res_levels, list_nb_PU)

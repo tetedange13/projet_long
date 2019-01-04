@@ -136,8 +136,10 @@ if __name__ == "__main__":
 
     # Simple TMalignment between both pdb:
     TMscore_ref = ext.TM_align(PEELED_PDB_ID, REF_PDB_ID, PEEL_LONGER)
+    # Cleaning
     for extension in ('.pdb', '.sup_atm', '.sup_all_atm'):
         os.remove("results/" + PEELED_PDB_ID + extension)
+    os.remove("results/" + REF_PDB_ID + '.pdb')
 
     # Display the different values of scores:
     print("Simple TMscore:", TMscore_ref)

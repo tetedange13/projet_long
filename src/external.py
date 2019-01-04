@@ -19,6 +19,8 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
         peeled_pdb_path: Path (str) to pdb that has been peeled (or just the
         pdb to will be moved for alignment)
         ref_pdb_path: Path (str) to the PDB to align against
+        peel_longer: Boolean telling if the peeled protein is longer (or not)
+        than the reference protein
 
     Returns:
         The value of the associated TMscore
@@ -42,13 +44,15 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
 
 
 def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
-    if peel_longer:
-        cmdLine_parMatt = ("bin/parMATT/bin/parMatt " + ref_pdb_path + " " +
-                           peeled_pdb_path + " -t 1 -o output")
-
-    else:
-        cmdLine_parMatt = ("bin/parMATT/bin/parMatt " + peeled_pdb_path + " " +
-                           ref_pdb_path + " -t 1 -o output")
+    """
+    Args:
+        peeled_pdb_path:
+        ref_pdb_path:
+        peel_longer: Boolean telling if the peeled protein is longer (or not)
+        than the reference protein
+    """
+    cmdLine_parMatt = ("bin/parMATT/bin/parMatt " + peeled_pdb_path + " " +
+                       ref_pdb_path + " -t 1 -o output")
 
     out_parMatt = sub.Popen(cmdLine_parMatt.split(),
                             stdout=sub.PIPE).communicate()[0]
@@ -77,6 +81,8 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     Args:
         PU_name: Name (str) of the PU to align
         ref_pdb_name: Name (str) of the PDB to align against
+        peel_longer: Boolean telling if the peeled protein is longer (or not)
+        than the reference protein
 
     Returns:
         The value of the associated TMscore
