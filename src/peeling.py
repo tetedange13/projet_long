@@ -149,7 +149,7 @@ def write_algnd_PUs(PU_max_name, algnd_filename, idx):
                    # Send chain A into the file getering all aligned PUs:
                    aligned_PU.write(line)
 
-        # aligned_PU.write("TER\n")
+        aligned_PU.write("TER\n")
         aligned_PU.close()
 
 
@@ -284,6 +284,8 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
 
         #os.remove("PU_" + str(level) + "_algnd")
         PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+        # TMscore = ext.gdt_pl("results/" + PU_alignd_file,
+        #                        "results/" + ref_pdb_id + '_safe.pdb')
         TMscore = ext.TM_score("results/" + PU_alignd_file,
                                "results/" + ref_pdb_id + '_safe.pdb',
                                peel_longer)
@@ -299,8 +301,7 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
             os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
                       str(i+1) + '.pdb')
 
-    # os.remove('results/' + peeled_pdb_id + '_safe.pdb')
-    os.remove('results/' + ref_pdb_id + '_safe.pdb')
+    # os.remove('results/' + ref_pdb_id + '_safe.pdb')
 
     print('\n')
     return (res_levels, list_nb_PU)

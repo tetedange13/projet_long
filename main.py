@@ -149,10 +149,19 @@ if __name__ == "__main__":
                                         res_peel_rev[idx_best_level_rev]))
     print("parMATT TMscore:", TM_parMATT, '\n')
 
+    # os.system("perl bin/gdt.pl results/1aohA_PUs_algnd_1.pdb results/1aojA_safe.pdb")
+    # os.system("perl bin/gdt.pl results/1aojA_safe.pdb results/1aohA_PUs_algnd_1.pdb")
+    # os.system("perl bin/gdt.pl output.pdb")
+
+
     # Plot of the curves associated with the peeled-TMalign:
     if not BENCH_MODE:
         display_curve(list_nb_PU, list_nb_PU_rev, res_peel, res_peel_rev,
                       REF_PDB_ID, PEELED_PDB_ID, TM_parMATT, TMscore_ref)
     else:
-        pass
         # Write file gethering all info for bench
+        to_write = np.array([TMscore_ref, max(res_peel[idx_best_level],
+                                            res_peel_rev[idx_best_level_rev]),
+                                            res_peel[idx_best_level]])
+        with open('toto.csv', 'a') as out_file:
+            np.savetxt(out_file, to_write[np.newaxis], delimiter=';')

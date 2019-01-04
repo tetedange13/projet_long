@@ -484,10 +484,10 @@ sub dp
 
     # Percentage of identity
     printf("Percentage of identity    : %5.2f\n",$pid/$num_ali*100);
-    printf("Percentage of identity    : %5.2f (on residues below a threshod of 5.0 A)\n",$pid_rmsd/$num_ali_rmsd*100);
+    #printf("Percentage of identity    : %5.2f (on residues below a threshod of 5.0 A)\n",$pid_rmsd/$num_ali_rmsd*100);
 
     #Compute RMSD
-    $rmsd=sqrt($rmsd/$num_ali_rmsd);
+    #$rmsd=sqrt($rmsd/$num_ali_rmsd);
     printf("RMSD     : %5.3f (on residues below a threshod of 5.0 A)\n",$rmsd);
 
     #Compute TM-SCORE

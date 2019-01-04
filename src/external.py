@@ -62,7 +62,7 @@ def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
     REF_PDB, REF_PDB_ID = mio.extract_chain("output.pdb", "B")
 
     # Remove useless files produced by parMATT:
-    for extension in ('pdb', 'spt', 'fasta', 'txt'):
+    for extension in ('spt', 'fasta', 'txt'):
         os.remove("output." + extension)
 
     TMscore = TM_score("results/" + PEELED_PDB, "results/" + REF_PDB, peel_longer)
@@ -107,5 +107,26 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     # Remove useless files:
     for ext in (".sup_all_atm_lig", ".sup_all", ".sup"):
         os.remove("results/" + PU_name + ext)
+
+    return float(searchObj.group(1))
+
+
+def gdt_pl(PU_pdb_path, ref_pdb_path):
+    """
+    """
+    os.system("cat " + PU_pdb_path + " > toto.pdb")
+    os.system("echo TER >> toto.pdb")
+    os.system("cat " + ref_pdb_path + " >> toto.pdb")
+    os.system("echo TER >> toto.pdb")
+
+    cmdLine_gdt = ("perl bin/gdt.pl toto.pdb")
+
+    out_gdt = sub.Popen(cmdLine_gdt.split(), stdout=sub.PIPE).communicate()[0]
+    lines_gdt = out_gdt.decode()
+    print(lines_gdt)
+
+    # We get the TMscore by the chain 2, because it corresponds to the ref PDB
+    regex_gdt = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain 2)")
+    searchObj = re.search(regex_gdt, lines_gdt)
 
     return float(searchObj.group(1))
