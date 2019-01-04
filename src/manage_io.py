@@ -93,7 +93,8 @@ def parse_pdb(pdb_file):
             else:
                 dict_coord[resID][1] += line
 
-    return dict_coord
+    # The resID is now equivalent to the size of the protein given as argument
+    return (resID, dict_coord)
 
 
 def write_to():
