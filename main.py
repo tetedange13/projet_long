@@ -26,6 +26,7 @@ import src.external as ext
 
 
 def display_curve(levels_x, levels_x_rev, TMscores_y, TMscores_y_rev,
+                  res_gdt, res_gdt_rev,
                   ref_pdb_id, peeled_pdb_id, parMATT_TMscore, ref_TMscore):
     """
     Display the curve of the values of TMscore (between aligned PU and reference
@@ -53,6 +54,10 @@ def display_curve(levels_x, levels_x_rev, TMscores_y, TMscores_y_rev,
     # Display horizontal line for reference (normal) TMscore:
     plots.append(plt.plot([0, max_nb_PU],
                           [ref_TMscore] * 2, 'm-'))
+
+    # gdt results:
+    plots.append(plt.plot(levels_x, res_gdt, 'cx-'))
+    plots.append(plt.plot(levels_x_rev, res_gdt_rev, 'rx-'))
 
     # Add legends and axis labels:
     plt.legend([plot[0] for plot in plots],
@@ -101,8 +106,8 @@ if __name__ == "__main__":
         os.mkdir("results")
 
     # Extract first chain towards the results/ folder:
-    PEELED_PDB, PEELED_PDB_ID = mio.extract_chain(TO_PEELED_PDB)
-    REF_PDB, REF_PDB_ID = mio.extract_chain(TO_REF_PDB)
+    PEELED_PDB, PEELED_PDB_ID = mio.extract_chain(TO_PEELED_PDB, PEEL_CHAIN_ID)
+    REF_PDB, REF_PDB_ID = mio.extract_chain(TO_REF_PDB, REF_CHAIN_ID)
     PEELED_PDB_PATH = "results/" + PEELED_PDB
     REF_PDB_PATH = "results/" + REF_PDB
 
@@ -116,8 +121,7 @@ if __name__ == "__main__":
     PEEL_LONGER = False
     if SIZE_PEELED > SIZE_REF:
         PEEL_LONGER = True
-    print("SIZ_PEEL:", SIZE_PEELED)
-    print("SIZ_REF:", SIZE_REF)
+    print("SIZ_PEEL:", SIZE_PEELED, "SIZ_REF:", SIZE_REF)
 
     # With parMATT:
     TM_parMATT = ext.parMATT(PEELED_PDB_PATH, REF_PDB_PATH, PEEL_LONGER)
@@ -156,10 +160,10 @@ if __name__ == "__main__":
                                         res_peel_rev[idx_best_level_rev]))
     print("parMATT TMscore:", TM_parMATT, '\n')
 
-
     # Plot of the curves associated with the peeled-TMalign:
     if not BENCH_MODE:
         display_curve(list_nb_PU, list_nb_PU_rev, res_peel, res_peel_rev,
+                      res_gdt, res_gdt_rev,
                       REF_PDB_ID, PEELED_PDB_ID, TM_parMATT, TMscore_ref)
     else:
         # Write file gethering all info for bench
