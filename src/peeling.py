@@ -27,15 +27,15 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
         A list of lines from the output of the peeling program, containing all
         the boundaries of the different PUs at each level of cutting
     """
-    a_la_fac = True
+    a_la_fac = False
     if a_la_fac:
-        cmdLine_peel = ("bin/peel -pdb " + peeled_pdb_path +
+        cmdLine_peel = ("bin/peel64 -pdb " + peeled_pdb_path +
                         " -dssp data/" + peeled_pdb_id + ".dss"
                         " -R2 95 -ss2 8 -lspu 20 -mspu 0 -d0 6.0 -delta 1.5"
                         " -oss 1 -p 0 -cp 0 -npu 16")
 
     else:
-        cmdLine_peel = ("bin/peel " + peeled_pdb_path + " data/" +
+        cmdLine_peel = ("bin/peel32 " + peeled_pdb_path + " data/" +
                         peeled_pdb_id + ".dss 95 8 20 0 6.0 1.5 1 0 0")
 
     print("Peeling of " + peeled_pdb_id + " in progress...")
@@ -315,7 +315,7 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
 
     # Creation of dssp file (needed for peeling):
     if not os.path.isfile("data/" + peeled_pdb_id + ".dss"):
-        os.system("bin/dssp -i " + peeled_pdb_path + " > data/" +
+        os.system("bin/dssp32 -i " + peeled_pdb_path + " > data/" +
                   peeled_pdb_id + ".dss")
 
     # Peeling:
@@ -333,8 +333,19 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
                                            peel_longer=peel_longer)
 
     salut = my_pool.map(partial_func, range(len(out_peel)))
+    my_pool.close()
     print(salut)
-    import sys ; sys.exit()
+    nb_levels = len(salut)
+    res_levels = [0.0] * nb_levels
+    list_nb_PU = [0] * nb_levels
+    res_gdt = [0.0] * nb_levels
+
+    for chloe in salut:
+        level, TM_gdt, TMscore, nb_tot_PU = chloe
+        res_levels[level-1] = TMscore
+        list_nb_PU[level-1] = nb_tot_PU
+        res_gdt[level-1] = TM_gdt
+    # import sys ; sys.exit()
     # res_levels = []
     # list_nb_PU = []
     # res_gdt = []
