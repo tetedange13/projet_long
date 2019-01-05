@@ -15,11 +15,11 @@
 
 import sys
 import os
-# import shutil
+import re
 import urllib.request as urlreq
 import pandas as pd
 import pyquery as pyq
-import re
+import multiprocessing as mp
 
 
 class AppURLopener(urlreq.FancyURLopener):
@@ -27,7 +27,10 @@ class AppURLopener(urlreq.FancyURLopener):
 
 
 def get_url_dom(sid_dom):
-    """Download the given files from the webpage of a folder"""
+    """
+    Get the exact url of the SCOP (domain) PDB, by looking through the
+    HTML page associated to the domain
+    """
     opener = AppURLopener()
     url_to_open = "http://scop.berkeley.edu/sid=" + sid_dom
 
@@ -47,23 +50,9 @@ def get_url_dom(sid_dom):
         return list_hrefs[0]
 
 
-
-def dl_pdb_2(sid_dom, pdb_id):
-    """
-    Download the given files from the webpage of a folder
-    """
-
-    url_pdb = ("http://scop.berkeley.edu/astral/pdbstyle/ver=2.05&id=" +
-               sid_dom + "&output=txt")
-    print(url_pdb)
-    print("Dowloading " + pdb_id + ".pdb from the RCSB website...")
-    urlreq.urlretrieve(url_pdb, "data/" + pdb_id + '.pdb')
-    print("Download finished !\n")
-
-
 def dl_pdb(url_dom, pdb_id):
     """
-    Download the given files from the webpage of a folder
+    Download the given SCOP (domain) PDB file from the webpage
     """
     good_url = re.sub(r'(output=html)', 'output=txt', url_dom)
 
@@ -84,17 +73,19 @@ if __name__ == "__main__":
     if os.path.isfile('toto.csv'):
         os.remove("toto.csv")
 
+    NB_CPU = mp.cpu_count() - 1
+
     for idx, row in RIPC_txt.iterrows():
+        len_dom1, len_dom2 = row['Length1'],row['Length2']
         dom1_sid, dom2_sid = row['Domain1'], row['Domain2']
         pdb_id_dom1, pdb_id_dom2 = dom1_sid[1:5], dom2_sid[1:5]
         chainID_sid1, chainID_sid2 = dom1_sid[5], dom2_sid[5]
 
-        print(dom1_sid, dom2_sid)
 
+        if idx == 1:
+            print("LEN_DOM1 (PEEL):", len_dom1)
+            print("LEN_DOM2 (REF):", len_dom2)
 
-        # if idx == 1:
-        if True:
-            # print("salut")
             # # Deals with the case where chainID is not specified ('_'):
             # if chainID_sid1 == '_':
             #     chainID_dom1 = 'A'
@@ -113,11 +104,11 @@ if __name__ == "__main__":
             if not os.path.isfile("data/" + pdb_id_dom2 + '.pdb'):
                 url_dom2 = get_url_dom(dom2_sid)
                 dl_pdb(url_dom2, pdb_id_dom2)
-        #
-        #     print(pdb_id_dom1+chainID_dom1, pdb_id_dom2+chainID_dom2)
-        #     os.system("./main.py -p data/" + pdb_id_dom1 + '.pdb -r data/' +
-        #               pdb_id_dom2 + ".pdb -c " + chainID_dom1 + " -s " +
-        #               chainID_dom2 +" -b f")
+
+            print(pdb_id_dom1, pdb_id_dom2)
+            os.system("./main.py -p data/" + pdb_id_dom1 + '.pdb -r data/' +
+                      pdb_id_dom2 + ".pdb -b f")# -c " + chainID_dom1 + " -s " +
+                      #chainID_dom2)
 
         # else:
         #     sys.exit()

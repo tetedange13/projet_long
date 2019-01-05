@@ -240,6 +240,49 @@ def get_best_level(res_peel, list_nb_PU):
         return np.argmax(ratio_score_nbPU)
 
 
+def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
+            dictCoord_ref, ref_pdb_id, peel_longer):
+    level = idx + 1
+    print("Proceeding peeling level", level)
+
+    dict_all_PU = peeled_to_dict(out_peel[idx])
+    generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
+
+    already_selcted = []
+    nb_tot_PU = len(dict_all_PU)
+
+    # Then we loop on the number of PUs, to repeat the process
+    for i in range(nb_tot_PU):
+        nb_bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU, already_selcted,
+                                           peeled_pdb_id, ref_pdb_id,
+                                           level)
+        already_selcted.append(nb_bestAlgnd_PU)
+
+        PUmax_name = (peeled_pdb_id + "_PU_" + str(level) + '_' +
+                      str(nb_bestAlgnd_PU))
+        algnd_filename = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+
+        write_algnd_PUs(PUmax_name, algnd_filename, i)
+        erase_algned(dictCoord_ref, ref_pdb_id, PUmax_name)
+        # clean_sup_atm(peeled_pdb_id, level, nb_tot_PU)
+
+    #os.remove("PU_" + str(level) + "_algnd")
+    PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+    TM_gdt = ext.gdt_pl("results/" + PU_alignd_file,
+                           "results/" + ref_pdb_id + '_safe.pdb',
+                           peel_longer)
+
+    # Cmd resultats Sophie:
+    # TMscore = ext.TM_score("results/" + PU_alignd_file,
+    #                        "results/" + ref_pdb_id + '_safe.pdb',
+    #                        peel_longer)
+    TMscore = ext.TM_score("results/" + ref_pdb_id + '_safe.pdb',
+                           "results/" + PU_alignd_file,
+                           peel_longer)
+
+    return (level, TM_gdt,TMscore, nb_tot_PU)
+
+
 def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
                    peeled_pdb_path, peeled_pdb_id, dictCoord_peeled,
                    peel_longer):
@@ -305,8 +348,11 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
                                peel_longer)
 
         # Cmd resultats Sophie:
-        TMscore = ext.TM_score("results/" + PU_alignd_file,
-                               "results/" + ref_pdb_id + '_safe.pdb',
+        # TMscore = ext.TM_score("results/" + PU_alignd_file,
+        #                        "results/" + ref_pdb_id + '_safe.pdb',
+        #                        peel_longer)
+        TMscore = ext.TM_score("results/" + ref_pdb_id + '_safe.pdb',
+                               "results/" + PU_alignd_file,
                                peel_longer)
         res_levels.append(TMscore)
         list_nb_PU.append(nb_tot_PU)

@@ -32,7 +32,7 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    print(lines_TM)
+    # print(lines_TM)
 
     regex_TMscore = re.compile("(?:TM-score.+= )([0-9]\.[0-9]*)[ $]")
     searchObj = re.search(regex_TMscore, lines_TM)
@@ -109,7 +109,7 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    # print(lines_TM)
+    print(lines_TM)
 
     regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
     searchObj = re.search(regex_TMalign, lines_TM)

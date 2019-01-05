@@ -111,6 +111,11 @@ if __name__ == "__main__":
     PEELED_PDB_PATH = "results/" + PEELED_PDB
     REF_PDB_PATH = "results/" + REF_PDB
 
+    # Reindexing:
+    os.system("bin/reindex_pdb.py 1 " + PEELED_PDB_PATH + " " +
+              PEELED_PDB_PATH)
+    os.system("bin/reindex_pdb.py 1 " + REF_PDB_PATH + " " + REF_PDB_PATH)
+
     # Get lines from the pdb (avoid several open):
     with open(PEELED_PDB_PATH) as pdbFile_peeled, \
          open(REF_PDB_PATH) as pdbFile_ref:
@@ -121,7 +126,8 @@ if __name__ == "__main__":
     PEEL_LONGER = False
     if SIZE_PEELED > SIZE_REF:
         PEEL_LONGER = True
-    print("SIZ_PEEL:", SIZE_PEELED, "SIZ_REF:", SIZE_REF)
+    print("SIZ_PEEL (" + PEELED_PDB_ID + "):", SIZE_PEELED)
+    print("SIZ_REF (" + REF_PDB_ID + "):", SIZE_REF)
 
     # With parMATT:
     TM_parMATT = ext.parMATT(PEELED_PDB_PATH, REF_PDB_PATH, PEEL_LONGER)
