@@ -2,7 +2,7 @@
 
 """PeelAlign script
 Usage:
-  main.py -p <peelPdb> -r <refPdb> [-b <benchMode>]
+  main.py -p <peelPdb> -r <refPdb> [-b <benchMode>] [-c <peelChain>] [-s <refChain>]
 
 Options:
   -h --help                  help
@@ -10,6 +10,8 @@ Options:
   -p --peelPdb = peeled_pdb  input pdb file, that will be peeled
   -r --refPdb = ref_pdb      other input pdb file, that will be used as reference (not peeled)
   -b --benchMode = benching  Mode benchmarking (bool) [default: False]
+  -c --peelChain = pl_chain  Chain ID of the peeled PDB [default: first]
+  -s --refChain = ref_chain  Chain ID of the reference PDB [default: first]
 """
 
 
@@ -91,6 +93,8 @@ if __name__ == "__main__":
     TO_PEELED_PDB = ARGS["--peelPdb"]
     TO_REF_PDB = ARGS["--refPdb"]
     BENCH_MODE = check_bool_type(ARGS["--benchMode"])
+    PEEL_CHAIN_ID = ARGS["--peelChain"]
+    REF_CHAIN_ID = ARGS["--refChain"]
 
     # Creation of the results/ directory:
     if not os.path.isdir("results"):
@@ -119,20 +123,23 @@ if __name__ == "__main__":
     TM_parMATT = ext.parMATT(PEELED_PDB_PATH, REF_PDB_PATH, PEEL_LONGER)
 
     # Peeled-TMalignment:
-    res_peel, list_nb_PU = peel.peeled_TMalign(REF_PDB_PATH, REF_PDB_ID,
-                                               DICT_COORD_REF,
-                                               PEELED_PDB_PATH, PEELED_PDB_ID,
-                                               DICT_COORD_PEELED, PEEL_LONGER)
+    tuple_res = peel.peeled_TMalign(REF_PDB_PATH, REF_PDB_ID,
+                                    DICT_COORD_REF,
+                                    PEELED_PDB_PATH, PEELED_PDB_ID,
+                                    DICT_COORD_PEELED, PEEL_LONGER)
+    res_peel, list_nb_PU, res_gdt = tuple_res
     idx_best_level = peel.get_best_level(res_peel, list_nb_PU)
+    idx_best_gdt = peel.get_best_level(res_gdt, list_nb_PU)
 
-    # Peeling with TMalign (other sense):
+    # Peeled-TMalignment (other sense):
     print("\nNOW REVERSE ORDER")
     tuple_res_rev = peel.peeled_TMalign(PEELED_PDB_PATH, PEELED_PDB_ID,
                                         DICT_COORD_PEELED,
                                         REF_PDB_PATH, REF_PDB_ID,
                                         DICT_COORD_REF, not PEEL_LONGER)
-    res_peel_rev, list_nb_PU_rev = tuple_res_rev
+    res_peel_rev, list_nb_PU_rev, res_gdt_rev = tuple_res_rev
     idx_best_level_rev = peel.get_best_level(res_peel_rev, list_nb_PU_rev)
+    idx_best_gdt_rev = peel.get_best_level(res_gdt_rev, list_nb_PU_rev)
 
     # Simple TMalignment between both pdb:
     TMscore_ref = ext.TM_align(REF_PDB_ID, PEELED_PDB_ID, PEEL_LONGER)
@@ -148,10 +155,6 @@ if __name__ == "__main__":
     print("Max of peeled TMscores", max(res_peel[idx_best_level],
                                         res_peel_rev[idx_best_level_rev]))
     print("parMATT TMscore:", TM_parMATT, '\n')
-
-    # os.system("perl bin/gdt.pl results/1aohA_PUs_algnd_1.pdb results/1aojA_safe.pdb")
-    # os.system("perl bin/gdt.pl results/1aojA_safe.pdb results/1aohA_PUs_algnd_1.pdb")
-    # os.system("perl bin/gdt.pl output.pdb")
 
 
     # Plot of the curves associated with the peeled-TMalign:

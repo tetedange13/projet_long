@@ -23,12 +23,13 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
         than the reference protein
 
     Returns:
-        The value of the associated TMscore
+        The value of the associated TMscore (or -1 if no matching residues)
     """
     if peel_longer:
-        cmdLine_TM = ("bin/TMscore32 " + peeled_pdb_path + " " + ref_pdb_path)
+        cmdLine_TM = ("bin/TMscore " + peeled_pdb_path + " " + ref_pdb_path)
     else:
-        cmdLine_TM = ("bin/TMscore32 " + ref_pdb_path + " " + peeled_pdb_path)
+        cmdLine_TM = ("bin/TMscore " + ref_pdb_path + " " + peeled_pdb_path)
+
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
     print(lines_TM)
@@ -46,26 +47,35 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
 def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
     """
     Args:
-        peeled_pdb_path:
-        ref_pdb_path:
+        peeled_pdb_path: Path (str) to pdb that has been peeled (or just the
+        pdb to will be moved for alignment)
+        ref_pdb_path: Path (str) to the PDB to align against
         peel_longer: Boolean telling if the peeled protein is longer (or not)
         than the reference protein
+
+    Returns:
+        The value of TMscore associated with the structures aligned with
+        parMATT (normalized by the longest protein)
     """
-    cmdLine_parMatt = ("bin/parMATT/bin/parMatt32 " + peeled_pdb_path + " " +
-                       ref_pdb_path + " -t 1 -o output")
+    cmdLine_parMatt = ("bin/parMATT/bin/parMatt " + ref_pdb_path + " " +
+                       peeled_pdb_path + " -t 1 -o output")
 
     out_parMatt = sub.Popen(cmdLine_parMatt.split(),
                             stdout=sub.PIPE).communicate()[0]
     # print(out_parMatt.decode())
 
+    # parMATT produces a single PDB file with both (aligned) structures inside
+    # So we need to exctract to extract both chains (each structure) to give
+    # them as argument to the TMscore program
     PEELED_PDB, PEELED_PDB_ID = mio.extract_chain("output.pdb", "A")
     REF_PDB, REF_PDB_ID = mio.extract_chain("output.pdb", "B")
 
     # Remove useless files produced by parMATT:
-    for extension in ('spt', 'fasta', 'txt'):
+    for extension in ('pdb', 'spt', 'fasta', 'txt'):
         os.remove("output." + extension)
 
-    TMscore = TM_score("results/" + PEELED_PDB, "results/" + REF_PDB, peel_longer)
+    TMscore = TM_score("results/" + PEELED_PDB, "results/" + REF_PDB,
+                       peel_longer)
     os.remove("results/outputA.pdb")
     os.remove("results/outputB.pdb")
 
@@ -85,21 +95,21 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
         than the reference protein
 
     Returns:
-        The value of the associated TMscore
+        The value of the associated TMscore (normalized by the longest protein)
     """
     if peel_longer: # If peeled prot is longer, we keep the order as is
-        cmdLine_TM = ("bin/TMalign32 results/" + PU_name + '.pdb' +
+        cmdLine_TM = ("bin/TMalign results/" + PU_name + '.pdb' +
                       " results/" + ref_pdb_name + '.pdb' + " -o " + "results/" +
                       PU_name + '.sup')
 
     else: # Else we invert both proteins
-        cmdLine_TM = ("bin/TMalign32 results/" + ref_pdb_name + '.pdb' +
+        cmdLine_TM = ("bin/TMalign results/" + ref_pdb_name + '.pdb' +
                       " results/" + PU_name + '.pdb' + " -o " + "results/" +
                       PU_name + '.sup')
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    print(lines_TM)
+    # print(lines_TM)
 
     regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
     searchObj = re.search(regex_TMalign, lines_TM)
@@ -111,22 +121,40 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     return float(searchObj.group(1))
 
 
-def gdt_pl(PU_pdb_path, ref_pdb_path):
+def gdt_pl(PU_pdb_path, ref_pdb_path, peel_longer):
     """
+    Run the gdt.pl script, to get a maximized TMscore for the alignment between
+    aligned PUs and reference PDB
+
+    Args:
+        PU_pdb_path: Path to the pdb file of the given PU
+        ref_pdb_path: Path (str) to the PDB to align against
+        peel_longer: Boolean telling if the peeled protein is longer (or not)
+        than the reference protein
+
+    Returns:
+        The value of the maximized TMscore between both structures
     """
-    os.system("cat " + PU_pdb_path + " > toto.pdb")
-    os.system("echo TER >> toto.pdb")
-    os.system("cat " + ref_pdb_path + " >> toto.pdb")
+    # Creation of the input file for the gdt.pl script:
+    if peel_longer:
+        os.system("cat " + ref_pdb_path + " > toto.pdb")
+        os.system("echo TER >> toto.pdb")
+        os.system("cat " + PU_pdb_path + " >> toto.pdb")
+    else:
+        os.system("cat " + PU_pdb_path + " > toto.pdb")
+        os.system("echo TER >> toto.pdb")
+        os.system("cat " + ref_pdb_path + " >> toto.pdb")
     os.system("echo TER >> toto.pdb")
 
     cmdLine_gdt = ("perl bin/gdt.pl toto.pdb")
 
     out_gdt = sub.Popen(cmdLine_gdt.split(), stdout=sub.PIPE).communicate()[0]
     lines_gdt = out_gdt.decode()
-    print(lines_gdt)
+    # print(lines_gdt)
 
     # We get the TMscore by the chain 2, because it corresponds to the ref PDB
     regex_gdt = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain 2)")
     searchObj = re.search(regex_gdt, lines_gdt)
+    os.remove("toto.pdb")
 
     return float(searchObj.group(1))
