@@ -7,8 +7,10 @@ generation of the PU found
 
 import os
 import subprocess as sub
-import src.manage_io as mio
 import numpy as np
+import multiprocessing as mp
+import functools as ftls
+import src.manage_io as mio
 import src.external as ext
 
 
@@ -267,20 +269,29 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
         # clean_sup_atm(peeled_pdb_id, level, nb_tot_PU)
 
     #os.remove("PU_" + str(level) + "_algnd")
-    PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
-    TM_gdt = ext.gdt_pl("results/" + PU_alignd_file,
-                           "results/" + ref_pdb_id + '_safe.pdb',
-                           peel_longer)
+    PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level)
+    TM_gdt = ext.gdt_pl(PU_alignd_file,
+                        "results/" + ref_pdb_id + '_safe.pdb',
+                        peel_longer)
 
     # Cmd resultats Sophie:
     # TMscore = ext.TM_score("results/" + PU_alignd_file,
     #                        "results/" + ref_pdb_id + '_safe.pdb',
     #                        peel_longer)
     TMscore = ext.TM_score("results/" + ref_pdb_id + '_safe.pdb',
-                           "results/" + PU_alignd_file,
+                           "results/" + PU_alignd_file + '.pdb',
                            peel_longer)
 
-    return (level, TM_gdt,TMscore, nb_tot_PU)
+    # Replace ref pdb file with the original one:
+    os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
+              ref_pdb_id + '.pdb')
+
+    # Remove pdb files of the PUs of the current files
+    # for i in range(nb_tot_PU):
+    #     os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
+    #               str(i+1) + '.pdb')
+
+    return (level, TM_gdt, TMscore, nb_tot_PU)
 
 
 def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
@@ -311,61 +322,35 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
     out_peel = peeling(peeled_pdb_path, peeled_pdb_id)
     os.remove("data/" + peeled_pdb_id + '.dss')
 
+    # nb_cpu = mp.cpu_count() - 1
+    nb_cpu = 1
+    my_pool = mp.Pool(nb_cpu)
+    partial_func = ftls.partial(test_mp, out_peel=out_peel,
+                                           dictCoord_peeled=dictCoord_peeled,
+                                           peeled_pdb_id=peeled_pdb_id,
+                                           dictCoord_ref=dictCoord_ref,
+                                           ref_pdb_id=ref_pdb_id,
+                                           peel_longer=peel_longer)
 
-    res_levels = []
-    list_nb_PU = []
-    res_gdt = []
+    salut = my_pool.map(partial_func, range(len(out_peel)))
+    print(salut)
+    import sys ; sys.exit()
+    # res_levels = []
+    # list_nb_PU = []
+    # res_gdt = []
+    #
+    # for idx in range(len(out_peel)):
+    #     level, TM_gdt, TMscore, nb_tot_PU = test_mp(idx, out_peel,
+    #                                                 dictCoord_peeled,
+    #                                                 peeled_pdb_id,
+    #                                                 dictCoord_ref, ref_pdb_id,
+    #                                                 peel_longer)
 
-    for idx in range(len(out_peel)):
-        level = idx + 1
-        print("Proceeding peeling level", level)
+        #
+        # res_levels.append(TMscore)
+        # list_nb_PU.append(nb_tot_PU)
+        # res_gdt.append(TM_gdt)
 
-        dict_all_PU = peeled_to_dict(out_peel[idx])
-        generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
-
-        already_selcted = []
-        nb_tot_PU = len(dict_all_PU)
-
-        # Then we loop on the number of PUs, to repeat the process
-        for i in range(nb_tot_PU):
-            nb_bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU, already_selcted,
-                                               peeled_pdb_id, ref_pdb_id,
-                                               level)
-            already_selcted.append(nb_bestAlgnd_PU)
-
-            PUmax_name = (peeled_pdb_id + "_PU_" + str(level) + '_' +
-                          str(nb_bestAlgnd_PU))
-            algnd_filename = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
-
-            write_algnd_PUs(PUmax_name, algnd_filename, i)
-            erase_algned(dictCoord_ref, ref_pdb_id, PUmax_name)
-            # clean_sup_atm(peeled_pdb_id, level, nb_tot_PU)
-
-        #os.remove("PU_" + str(level) + "_algnd")
-        PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
-        TM_gdt = ext.gdt_pl("results/" + PU_alignd_file,
-                               "results/" + ref_pdb_id + '_safe.pdb',
-                               peel_longer)
-
-        # Cmd resultats Sophie:
-        # TMscore = ext.TM_score("results/" + PU_alignd_file,
-        #                        "results/" + ref_pdb_id + '_safe.pdb',
-        #                        peel_longer)
-        TMscore = ext.TM_score("results/" + ref_pdb_id + '_safe.pdb',
-                               "results/" + PU_alignd_file,
-                               peel_longer)
-        res_levels.append(TMscore)
-        list_nb_PU.append(nb_tot_PU)
-        res_gdt.append(TM_gdt)
-
-        # Replace ref pdb file with the original one:
-        os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
-                  ref_pdb_id + '.pdb')
-
-        # Remove pdb files of the PUs of the current files
-        # for i in range(nb_tot_PU):
-        #     os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
-        #               str(i+1) + '.pdb')
 
     # os.remove('results/' + ref_pdb_id + '_safe.pdb')
 

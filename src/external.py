@@ -121,7 +121,7 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     return float(searchObj.group(1))
 
 
-def gdt_pl(PU_pdb_path, ref_pdb_path, peel_longer):
+def gdt_pl(PU_alignd_file, ref_pdb_path, peel_longer):
     """
     Run the gdt.pl script, to get a maximized TMscore for the alignment between
     aligned PUs and reference PDB
@@ -135,18 +135,21 @@ def gdt_pl(PU_pdb_path, ref_pdb_path, peel_longer):
     Returns:
         The value of the maximized TMscore between both structures
     """
+    PU_pdb_path = "results/" + PU_alignd_file + '.pdb'
+    tmp_file = PU_alignd_file + ".pdb"
+
     # Creation of the input file for the gdt.pl script:
     if peel_longer:
-        os.system("cat " + ref_pdb_path + " > toto.pdb")
-        os.system("echo TER >> toto.pdb")
-        os.system("cat " + PU_pdb_path + " >> toto.pdb")
+        os.system("cat " + ref_pdb_path + " > " + tmp_file)
+        os.system("echo TER >> " + tmp_file)
+        os.system("cat " + PU_pdb_path + " >> " + tmp_file)
     else:
-        os.system("cat " + PU_pdb_path + " > toto.pdb")
-        os.system("echo TER >> toto.pdb")
-        os.system("cat " + ref_pdb_path + " >> toto.pdb")
-    os.system("echo TER >> toto.pdb")
+        os.system("cat " + PU_pdb_path + " > " + tmp_file)
+        os.system("echo TER >> " + tmp_file)
+        os.system("cat " + ref_pdb_path + " >> " + tmp_file)
+    os.system("echo TER >> " + tmp_file)
 
-    cmdLine_gdt = ("perl bin/gdt.pl toto.pdb")
+    cmdLine_gdt = ("perl bin/gdt.pl " + tmp_file)
 
     out_gdt = sub.Popen(cmdLine_gdt.split(), stdout=sub.PIPE).communicate()[0]
     lines_gdt = out_gdt.decode()
@@ -155,6 +158,6 @@ def gdt_pl(PU_pdb_path, ref_pdb_path, peel_longer):
     # We get the TMscore by the chain 2, because it corresponds to the ref PDB
     regex_gdt = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain 2)")
     searchObj = re.search(regex_gdt, lines_gdt)
-    os.remove("toto.pdb")
+    os.remove(tmp_file)
 
     return float(searchObj.group(1))

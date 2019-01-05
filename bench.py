@@ -19,7 +19,6 @@ import re
 import urllib.request as urlreq
 import pandas as pd
 import pyquery as pyq
-import multiprocessing as mp
 
 
 class AppURLopener(urlreq.FancyURLopener):
@@ -72,8 +71,6 @@ if __name__ == "__main__":
     # Delete old csv file:
     if os.path.isfile('toto.csv'):
         os.remove("toto.csv")
-
-    NB_CPU = mp.cpu_count() - 1
 
     for idx, row in RIPC_txt.iterrows():
         len_dom1, len_dom2 = row['Length1'],row['Length2']
