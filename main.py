@@ -153,11 +153,9 @@ if __name__ == "__main__":
 
     # Simple TMalignment between both pdb:
     TMscore_ref = ext.TM_align(REF_PDB_ID, PEELED_PDB_ID, PEEL_LONGER)
-
-    # Cleaning:
-    for extension in ('.pdb', '.sup_atm', '.sup_all_atm'):
+    # Cleaning files from TMalign:
+    for extension in ('.sup_atm', '.sup_all_atm'):
         os.remove("results/" + REF_PDB_ID + extension)
-    # os.remove("results/" + PEELED_PDB_ID + '.pdb')
 
     # Variables to write:
     best_peel_TM = res_peel[idx_best_level]
@@ -173,6 +171,10 @@ if __name__ == "__main__":
     print("Best peeled TMscore (rev):", best_peel_TM_rev)
     print("Max of peeled TMscores", max_peel_TM)
     print("parMATT TMscore:", TM_parMATT, '\n')
+
+    # Cleaning remaning useless files:
+    os.remove("results/" + PEELED_PDB_ID + '.pdb')
+    os.remove("results/" + REF_PDB_ID + '.pdb')
 
     # Plot of the curves associated with the peeled-TMalign:
     if not BENCH_MODE:

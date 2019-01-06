@@ -32,7 +32,6 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    # print(lines_TM)
 
     regex_TMscore = re.compile("(?:TM-score.+= )([0-9]\.[0-9]*)[ $]")
     searchObj = re.search(regex_TMscore, lines_TM)
@@ -62,7 +61,6 @@ def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
 
     out_parMatt = sub.Popen(cmdLine_parMatt.split(),
                             stdout=sub.PIPE).communicate()[0]
-    # print(out_parMatt.decode())
 
     # parMATT produces a single PDB file with both (aligned) structures inside
     # So we need to exctract to extract both chains (each structure) to give
@@ -102,11 +100,10 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    # print(lines_TM)
 
-    if peel_longer: # If peeled prot is longer, we keep the order as is
+    if peel_longer: # If peeled prot is longer, we get "normalized by chain 2"
         regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
-    else: # Else we invert both proteins
+    else: # Else we get TMscore "normalized by chain 1"
         regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_1)")
     searchObj = re.search(regex_TMalign, lines_TM)
 
@@ -149,9 +146,9 @@ def gdt_pl(PU_alignd_file, ref_pdb_path, peel_longer):
 
     out_gdt = sub.Popen(cmdLine_gdt.split(), stdout=sub.PIPE).communicate()[0]
     lines_gdt = out_gdt.decode()
-    # print(lines_gdt)
 
-    # We get the TMscore by the chain 2, because it corresponds to the ref PDB
+    # We get the TMscore by the chain 2, because it corresponds to the longer
+    # protein
     regex_gdt = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain 2)")
     searchObj = re.search(regex_gdt, lines_gdt)
     os.remove(tmp_file)
