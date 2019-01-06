@@ -158,12 +158,19 @@ if __name__ == "__main__":
         os.remove("results/" + REF_PDB_ID + extension)
     # os.remove("results/" + PEELED_PDB_ID + '.pdb')
 
+    # Variables to write:
+    best_peel_TM = res_peel[idx_best_level]
+    best_peel_TM_rev = res_peel_rev[idx_best_level_rev]
+    max_peel_TM = max(best_peel_TM, best_peel_TM_rev)
+    best_peel_gdt = res_peel[idx_best_gdt]
+    best_peel_gdt_rev = res_peel_rev[idx_best_gdt_rev]
+    max_peel_gdt = max(best_peel_gdt, best_peel_gdt_rev)
+
     # Display the different values of scores:
     print("Simple TMscore:", TMscore_ref)
-    print("Best peeled TMscore:", res_peel[idx_best_level])
-    print("Best peeled TMscore (rev):", res_peel_rev[idx_best_level_rev])
-    print("Max of peeled TMscores", max(res_peel[idx_best_level],
-                                        res_peel_rev[idx_best_level_rev]))
+    print("Best peeled TMscore:", best_peel_TM)
+    print("Best peeled TMscore (rev):", )
+    print("Max of peeled TMscores", )
     print("parMATT TMscore:", TM_parMATT, '\n')
 
     # Plot of the curves associated with the peeled-TMalign:
@@ -173,8 +180,10 @@ if __name__ == "__main__":
                       REF_PDB_ID, PEELED_PDB_ID, TM_parMATT, TMscore_ref)
     else:
         # Write file gethering all info for bench
-        to_write = np.array([TMscore_ref, max(res_peel[idx_best_level],
-                                            res_peel_rev[idx_best_level_rev]),
-                                            res_peel[idx_best_level]])
+        to_write = np.array([PEELED_PDB_ID, REF_PDB_ID, TMscore_ref,
+                             TM_parMATT, best_peel_TM_rev, best_peel_TM,
+                             max_peel_TM, best_peel_gdt, best_peel_gdt_rev
+                             max_peel_gdt])
+
         with open('toto.csv', 'a') as out_file:
             np.savetxt(out_file, to_write[np.newaxis], delimiter=';')

@@ -72,6 +72,12 @@ if __name__ == "__main__":
     if os.path.isfile('toto.csv'):
         os.remove("toto.csv")
 
+    # Write header of the file containing the results of the bench:
+    with open('toto.csv', 'w') as toto:
+        toto.write("peel_pdb_id;ref_pdb_id;TMscore_ref;TM_parMATT;" +
+                   "best_peel_TM_rev;best_peel_TM;max_peel_TM;best_peel_gdt;" +
+                   "best_peel_gdt_rev;max_peel_gdt")
+
     for idx, row in RIPC_txt.iterrows():
         len_dom1, len_dom2 = row['Length1'],row['Length2']
         dom1_sid, dom2_sid = row['Domain1'], row['Domain2']

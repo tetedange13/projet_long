@@ -248,10 +248,10 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
     print("Proceeding peeling level", level)
 
     dict_all_PU = peeled_to_dict(out_peel[idx])
-    generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
-
-    already_selcted = []
     nb_tot_PU = len(dict_all_PU)
+
+    generate_PU_pdbs(dict_all_PU, level, dictCoord_peeled, peeled_pdb_id)
+    already_selcted = []
 
     # Then we loop on the number of PUs, to repeat the process
     for i in range(nb_tot_PU):
@@ -326,11 +326,11 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
     nb_cpu = 1
     my_pool = mp.Pool(nb_cpu)
     partial_func = ftls.partial(test_mp, out_peel=out_peel,
-                                           dictCoord_peeled=dictCoord_peeled,
-                                           peeled_pdb_id=peeled_pdb_id,
-                                           dictCoord_ref=dictCoord_ref,
-                                           ref_pdb_id=ref_pdb_id,
-                                           peel_longer=peel_longer)
+                                         dictCoord_peeled=dictCoord_peeled,
+                                         peeled_pdb_id=peeled_pdb_id,
+                                         dictCoord_ref=dictCoord_ref,
+                                         ref_pdb_id=ref_pdb_id,
+                                         peel_longer=peel_longer)
 
     salut = my_pool.map(partial_func, range(len(out_peel)))
     my_pool.close()
