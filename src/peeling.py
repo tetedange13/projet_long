@@ -247,6 +247,10 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
     level = idx + 1
     print("Proceeding peeling level", level)
 
+    # Copy of the "safe" reference pdb, that will be proper to this level
+    os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
+              ref_pdb_id + str(level) + '.pdb')
+
     dict_all_PU = peeled_to_dict(out_peel[idx])
     nb_tot_PU = len(dict_all_PU)
 
@@ -256,7 +260,7 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
     # Then we loop on the number of PUs, to repeat the process
     for i in range(nb_tot_PU):
         nb_bestAlgnd_PU = get_bestAlgnd_PU(nb_tot_PU, already_selcted,
-                                           peeled_pdb_id, ref_pdb_id,
+                                           peeled_pdb_id, ref_pdb_id+str(level),
                                            level)
         already_selcted.append(nb_bestAlgnd_PU)
 
@@ -265,7 +269,7 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
         algnd_filename = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
 
         write_algnd_PUs(PUmax_name, algnd_filename, i)
-        erase_algned(dictCoord_ref, ref_pdb_id, PUmax_name)
+        erase_algned(dictCoord_ref, ref_pdb_id + str(level), PUmax_name)
         # clean_sup_atm(peeled_pdb_id, level, nb_tot_PU)
 
     #os.remove("PU_" + str(level) + "_algnd")
@@ -283,13 +287,15 @@ def test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
                            peel_longer)
 
     # Replace ref pdb file with the original one:
-    os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
-              ref_pdb_id + '.pdb')
+    # os.system("cp results/" + ref_pdb_id + "_safe.pdb results/" +
+    #           ref_pdb_id + '.pdb')
 
     # Remove pdb files of the PUs of the current files
     # for i in range(nb_tot_PU):
     #     os.remove("results/" + peeled_pdb_id + "_PU_" + str(level) + '_' +
     #               str(i+1) + '.pdb')
+
+    os.remove("results/" + ref_pdb_id + str(level) + '.pdb')
 
     return (level, TM_gdt, TMscore, nb_tot_PU)
 
@@ -322,24 +328,27 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
     out_peel = peeling(peeled_pdb_path, peeled_pdb_id)
     os.remove("data/" + peeled_pdb_id + '.dss')
 
+    # Parallelized version (TO TIME):
     # nb_cpu = mp.cpu_count() - 1
     nb_cpu = 2
-    # my_pool = mp.Pool(nb_cpu)
-    # partial_func = ftls.partial(test_mp, out_peel=out_peel,
-    #                                      dictCoord_peeled=dictCoord_peeled,
-    #                                      peeled_pdb_id=peeled_pdb_id,
-    #                                      dictCoord_ref=dictCoord_ref,
-    #                                      ref_pdb_id=ref_pdb_id,
-    #                                      peel_longer=peel_longer)
-    #
-    # salut = my_pool.map(partial_func, range(len(out_peel)))
-    # my_pool.close()
+    my_pool = mp.Pool(nb_cpu)
+    partial_func = ftls.partial(test_mp, out_peel=out_peel,
+                                         dictCoord_peeled=dictCoord_peeled,
+                                         peeled_pdb_id=peeled_pdb_id,
+                                         dictCoord_ref=dictCoord_ref,
+                                         ref_pdb_id=ref_pdb_id,
+                                         peel_longer=peel_longer)
 
-    salut = []
-    for idx in range(len(out_peel)):
-        salut.append(test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
-                             dictCoord_ref, ref_pdb_id, peel_longer))
+    salut = my_pool.map(partial_func, range(len(out_peel)))
+    my_pool.close()
 
+    # Serial version:
+    # salut = []
+    # for idx in range(len(out_peel)):
+    #     salut.append(test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
+    #                          dictCoord_ref, ref_pdb_id, peel_longer))
+
+    # Putting outputs in proper lists:
     print("SAL", salut)
     nb_levels = len(salut)
     res_levels = [0.0] * nb_levels
@@ -351,16 +360,6 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
         res_levels[level-1] = TMscore
         list_nb_PU[level-1] = nb_tot_PU
         res_gdt[level-1] = TM_gdt
-    # res_levels = []
-    # list_nb_PU = []
-    # res_gdt = []
-    #
-
-        #
-        # res_levels.append(TMscore)
-        # list_nb_PU.append(nb_tot_PU)
-        # res_gdt.append(TM_gdt)
-
 
     # os.remove('results/' + ref_pdb_id + '_safe.pdb')
 
