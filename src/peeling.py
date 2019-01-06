@@ -324,17 +324,23 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
 
     # nb_cpu = mp.cpu_count() - 1
     nb_cpu = 2
-    my_pool = mp.Pool(nb_cpu)
-    partial_func = ftls.partial(test_mp, out_peel=out_peel,
-                                         dictCoord_peeled=dictCoord_peeled,
-                                         peeled_pdb_id=peeled_pdb_id,
-                                         dictCoord_ref=dictCoord_ref,
-                                         ref_pdb_id=ref_pdb_id,
-                                         peel_longer=peel_longer)
+    # my_pool = mp.Pool(nb_cpu)
+    # partial_func = ftls.partial(test_mp, out_peel=out_peel,
+    #                                      dictCoord_peeled=dictCoord_peeled,
+    #                                      peeled_pdb_id=peeled_pdb_id,
+    #                                      dictCoord_ref=dictCoord_ref,
+    #                                      ref_pdb_id=ref_pdb_id,
+    #                                      peel_longer=peel_longer)
+    #
+    # salut = my_pool.map(partial_func, range(len(out_peel)))
+    # my_pool.close()
 
-    salut = my_pool.map(partial_func, range(len(out_peel)))
-    my_pool.close()
-    print(salut)
+    salut = []
+    for idx in range(len(out_peel)):
+        salut.append(test_mp(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
+                             dictCoord_ref, ref_pdb_id, peel_longer))
+
+    print("SAL", salut)
     nb_levels = len(salut)
     res_levels = [0.0] * nb_levels
     list_nb_PU = [0] * nb_levels
@@ -345,17 +351,10 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
         res_levels[level-1] = TMscore
         list_nb_PU[level-1] = nb_tot_PU
         res_gdt[level-1] = TM_gdt
-    # import sys ; sys.exit()
     # res_levels = []
     # list_nb_PU = []
     # res_gdt = []
     #
-    # for idx in range(len(out_peel)):
-    #     level, TM_gdt, TMscore, nb_tot_PU = test_mp(idx, out_peel,
-    #                                                 dictCoord_peeled,
-    #                                                 peeled_pdb_id,
-    #                                                 dictCoord_ref, ref_pdb_id,
-    #                                                 peel_longer)
 
         #
         # res_levels.append(TMscore)

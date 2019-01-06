@@ -85,7 +85,7 @@ if __name__ == "__main__":
         chainID_sid1, chainID_sid2 = dom1_sid[5], dom2_sid[5]
 
 
-        if idx == 1:
+        if idx == 0:
             print("LEN_DOM1 (PEEL):", len_dom1)
             print("LEN_DOM2 (REF):", len_dom2)
 

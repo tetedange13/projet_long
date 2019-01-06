@@ -67,9 +67,9 @@ def display_curve(levels_x, levels_x_rev, TMscores_y, TMscores_y_rev,
     plt.xlabel('Number of PUs at each level of cutting')
     axis.xaxis.set_major_locator(tck.MaxNLocator(integer=True))
 
-    plt.show()
-    #fig.savefig("results/bench/" + simil_fam + ".pdf")
-    #plt.close(fig)
+    # plt.show()
+    fig.savefig("random1.pdf")
+    plt.close(fig)
 
 
 def check_bool_type(rep):
@@ -153,6 +153,7 @@ if __name__ == "__main__":
 
     # Simple TMalignment between both pdb:
     TMscore_ref = ext.TM_align(REF_PDB_ID, PEELED_PDB_ID, PEEL_LONGER)
+
     # Cleaning:
     for extension in ('.pdb', '.sup_atm', '.sup_all_atm'):
         os.remove("results/" + REF_PDB_ID + extension)
@@ -169,8 +170,8 @@ if __name__ == "__main__":
     # Display the different values of scores:
     print("Simple TMscore:", TMscore_ref)
     print("Best peeled TMscore:", best_peel_TM)
-    print("Best peeled TMscore (rev):", )
-    print("Max of peeled TMscores", )
+    print("Best peeled TMscore (rev):", best_peel_TM_rev)
+    print("Max of peeled TMscores", max_peel_TM)
     print("parMATT TMscore:", TM_parMATT, '\n')
 
     # Plot of the curves associated with the peeled-TMalign:

@@ -58,7 +58,7 @@ def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
         parMATT (normalized by the longest protein)
     """
     cmdLine_parMatt = ("bin/parMATT/bin/parMatt32 " + ref_pdb_path + " " +
-                       peeled_pdb_path + " -t 1 -o output")
+                       peeled_pdb_path + " -f pdb -t 1 -o output")
 
     out_parMatt = sub.Popen(cmdLine_parMatt.split(),
                             stdout=sub.PIPE).communicate()[0]
@@ -70,12 +70,11 @@ def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
     PEELED_PDB, PEELED_PDB_ID = mio.extract_chain("output.pdb", "A")
     REF_PDB, REF_PDB_ID = mio.extract_chain("output.pdb", "B")
 
-    # Remove useless files produced by parMATT:
-    for extension in ('pdb', 'spt', 'fasta', 'txt'):
-        os.remove("output." + extension)
-
-    TMscore = TM_score("results/" + PEELED_PDB, "results/" + REF_PDB,
+    TMscore = TM_score("results/outputA.pdb", "results/outputB.pdb",
                        peel_longer)
+
+    # Remove useless files produced by parMATT:
+    os.remove("output.pdb")
     os.remove("results/outputA.pdb")
     os.remove("results/outputB.pdb")
 
@@ -97,21 +96,18 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     Returns:
         The value of the associated TMscore (normalized by the longest protein)
     """
-    if peel_longer: # If peeled prot is longer, we keep the order as is
-        cmdLine_TM = ("bin/TMalign32 results/" + PU_name + '.pdb' +
-                      " results/" + ref_pdb_name + '.pdb' + " -o " + "results/" +
-                      PU_name + '.sup')
-
-    else: # Else we invert both proteins
-        cmdLine_TM = ("bin/TMalign32 results/" + ref_pdb_name + '.pdb' +
-                      " results/" + PU_name + '.pdb' + " -o " + "results/" +
-                      PU_name + '.sup')
+    cmdLine_TM = ("bin/TMalign32 results/" + PU_name + '.pdb' +
+                  " results/" + ref_pdb_name + '.pdb' + " -o " + "results/" +
+                  PU_name + '.sup')
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
-    print(lines_TM)
+    # print(lines_TM)
 
-    regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
+    if peel_longer: # If peeled prot is longer, we keep the order as is
+        regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_2)")
+    else: # Else we invert both proteins
+        regex_TMalign = re.compile("(?:TM-score.+)([0]\.[0-9]*)(?:.+Chain_1)")
     searchObj = re.search(regex_TMalign, lines_TM)
 
     # Remove useless files:
