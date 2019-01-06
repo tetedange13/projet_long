@@ -182,8 +182,8 @@ if __name__ == "__main__":
         # Write file gethering all info for bench
         to_write = np.array([PEELED_PDB_ID, REF_PDB_ID, TMscore_ref,
                              TM_parMATT, best_peel_TM_rev, best_peel_TM,
-                             max_peel_TM, best_peel_gdt, best_peel_gdt_rev
+                             max_peel_TM, best_peel_gdt, best_peel_gdt_rev,
                              max_peel_gdt])
 
         with open('toto.csv', 'a') as out_file:
-            np.savetxt(out_file, to_write[np.newaxis], delimiter=';')
+            np.savetxt(out_file, to_write[np.newaxis], delimiter=';', fmt='%s')

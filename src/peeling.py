@@ -323,7 +323,7 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
     os.remove("data/" + peeled_pdb_id + '.dss')
 
     # nb_cpu = mp.cpu_count() - 1
-    nb_cpu = 1
+    nb_cpu = 2
     my_pool = mp.Pool(nb_cpu)
     partial_func = ftls.partial(test_mp, out_peel=out_peel,
                                          dictCoord_peeled=dictCoord_peeled,
