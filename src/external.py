@@ -8,6 +8,8 @@ import re
 import os
 import subprocess as sub
 import src.manage_io as mio
+import urllib.request as urlreq
+import pyquery as pyq
 
 
 def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
@@ -26,9 +28,9 @@ def TM_score(peeled_pdb_path, ref_pdb_path, peel_longer):
         The value of the associated TMscore (or -1 if no matching residues)
     """
     if peel_longer:
-        cmdLine_TM = ("bin/TMscore32 " + peeled_pdb_path + " " + ref_pdb_path)
+        cmdLine_TM = ("bin/TMscore64 " + peeled_pdb_path + " " + ref_pdb_path)
     else:
-        cmdLine_TM = ("bin/TMscore32 " + ref_pdb_path + " " + peeled_pdb_path)
+        cmdLine_TM = ("bin/TMscore64 " + ref_pdb_path + " " + peeled_pdb_path)
 
     out_TM = sub.Popen(cmdLine_TM.split(), stdout=sub.PIPE).communicate()[0]
     lines_TM = out_TM.decode()
@@ -56,7 +58,7 @@ def parMATT(peeled_pdb_path, ref_pdb_path, peel_longer):
         The value of TMscore associated with the structures aligned with
         parMATT (normalized by the longest protein)
     """
-    cmdLine_parMatt = ("bin/parMATT/bin/parMatt32 " + ref_pdb_path + " " +
+    cmdLine_parMatt = ("bin/parMATT/bin/parMatt64 " + ref_pdb_path + " " +
                        peeled_pdb_path + " -f pdb -t 1 -o output")
 
     out_parMatt = sub.Popen(cmdLine_parMatt.split(),
@@ -94,7 +96,7 @@ def TM_align(PU_name, ref_pdb_name, peel_longer):
     Returns:
         The value of the associated TMscore (normalized by the longest protein)
     """
-    cmdLine_TM = ("bin/TMalign32 results/" + PU_name + '.pdb' +
+    cmdLine_TM = ("bin/TMalign64 results/" + PU_name + '.pdb' +
                   " results/" + ref_pdb_name + '.pdb' + " -o " + "results/" +
                   PU_name + '.sup')
 
@@ -154,3 +156,43 @@ def gdt_pl(PU_alignd_file, ref_pdb_path, peel_longer):
     os.remove(tmp_file)
 
     return float(searchObj.group(1))
+
+
+class AppURLopener(urlreq.FancyURLopener):
+    version = "Mozilla/5.0"
+
+
+def get_url_dom(sid_dom):
+    """
+    Get the exact url of the SCOP (domain) PDB, by looking through the
+    HTML page associated to the domain
+    """
+    opener = AppURLopener()
+    url_to_open = "http://scop.berkeley.edu/sid=" + sid_dom
+
+    with opener.open(url_to_open) as response:
+        pq = pyq.PyQuery(response.read())
+
+    list_hrefs = []
+    for a in pq.find('a'):
+        current_href = a.get('href')
+        if 'pdbstyle' in current_href and sid_dom in current_href:
+            list_hrefs.append(current_href)
+
+    if len(list_hrefs) != 1:
+        print("ERROR: Several urls possible !! ")
+        sys.error(2)
+    else:
+        return list_hrefs[0]
+
+
+def dl_pdb(url_dom, pdb_id, dom_sid):
+    """
+    Download the given SCOP (domain) PDB file from the webpage
+    """
+    good_url = re.sub(r'(output=html)', 'output=txt', url_dom)
+
+    print("Dowloading the good domain of " + pdb_id + ".pdb from the SCOP " +
+          "website...")
+    urlreq.urlretrieve(good_url, "data/" + dom_sid + '.pdb')
+    print("Download finished !\n")

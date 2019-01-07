@@ -67,8 +67,7 @@ def display_curve(levels_x, levels_x_rev, TMscores_y, TMscores_y_rev,
     plt.xlabel('Number of PUs at each level of cutting')
     axis.xaxis.set_major_locator(tck.MaxNLocator(integer=True))
 
-    # plt.show()
-    fig.savefig("random1.pdf")
+    fig.savefig("curves.pdf")
     plt.close(fig)
 
 
@@ -183,10 +182,10 @@ if __name__ == "__main__":
                       REF_PDB_ID, PEELED_PDB_ID, TM_parMATT, TMscore_ref)
     else:
         # Write file gethering all info for bench
-        to_write = np.array([PEELED_PDB_ID, REF_PDB_ID, TMscore_ref,
+        to_write = np.array([PEELED_PDB_ID + '-' + REF_PDB_ID, TMscore_ref,
                              TM_parMATT, best_peel_TM_rev, best_peel_TM,
                              max_peel_TM, best_peel_gdt, best_peel_gdt_rev,
                              max_peel_gdt])
 
-        with open('toto.csv', 'a') as out_file:
+        with open('bench.csv', 'a') as out_file:
             np.savetxt(out_file, to_write[np.newaxis], delimiter=';', fmt='%s')

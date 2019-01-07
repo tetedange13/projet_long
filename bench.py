@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-"""Benchmarking script
+"""
+Benchmarking script
+
+Process to the benchmarking if needed and then generate nice plots and other
+interesting information about the results of the benchmarking
 """
 # Usage:
 #   bench.py -p <peelPdb> -r <refPdb> [-b <benchMode>]
@@ -16,102 +20,125 @@
 import sys
 import os
 import re
-import urllib.request as urlreq
+import numpy as np
 import pandas as pd
-import pyquery as pyq
+import subprocess as sub
+import matplotlib.pyplot as plt
+import src.external as ext
 
 
-class AppURLopener(urlreq.FancyURLopener):
-    version = "Mozilla/5.0"
+def disp_barplot(all_means):
+    fig = plt.figure()
+    axis = plt.subplot(111)
+    plt.title("Mean values of TMscore according to the method considered")
 
 
-def get_url_dom(sid_dom):
-    """
-    Get the exact url of the SCOP (domain) PDB, by looking through the
-    HTML page associated to the domain
-    """
-    opener = AppURLopener()
-    url_to_open = "http://scop.berkeley.edu/sid=" + sid_dom
+    barlist = axis.bar(all_means.index, all_means.values)
+    fig.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=45)
+    for bar in barlist:
+        bar.set_color(list(np.random.random(size=3)))
 
-    with opener.open(url_to_open) as response:
-        pq = pyq.PyQuery(response.read())
-
-    list_hrefs = []
-    for a in pq.find('a'):
-        current_href = a.get('href')
-        if 'pdbstyle' in current_href and sid_dom in current_href:
-            list_hrefs.append(current_href)
-
-    if len(list_hrefs) != 1:
-        print("ERROR: Several urls possible !! ")
-        sys.error(2)
-    else:
-        return list_hrefs[0]
-
-
-def dl_pdb(url_dom, pdb_id):
-    """
-    Download the given SCOP (domain) PDB file from the webpage
-    """
-    good_url = re.sub(r'(output=html)', 'output=txt', url_dom)
-
-    print("Dowloading the good domain of " + pdb_id + ".pdb from the SCOP " +
-          "website...")
-    urlreq.urlretrieve(good_url, "data/" + pdb_id + '.pdb')
-    print("Download finished !\n")
-
-
+    fig.savefig("barplot.pdf")
+    plt.close(fig)
 
 
 # MAIN:
 if __name__ == "__main__":
-    # Get dataset table:
-    RIPC_txt = pd.read_csv('data/RIPC_dataset.txt', sep='\t')
+    if not os.path.isfile('bench.csv'):
+        # Get dataset table:
+        RIPC_txt = pd.read_csv('data/RIPC_dataset.txt', sep='\t')
 
-    # Delete old csv file:
-    if os.path.isfile('toto.csv'):
-        os.remove("toto.csv")
-
-    # Write header of the file containing the results of the bench:
-    with open('toto.csv', 'w') as toto:
-        toto.write("peel_pdb_id;ref_pdb_id;TMscore_ref;TM_parMATT;" +
-                   "best_peel_TM_rev;best_peel_TM;max_peel_TM;best_peel_gdt;" +
-                   "best_peel_gdt_rev;max_peel_gdt")
-
-    for idx, row in RIPC_txt.iterrows():
-        len_dom1, len_dom2 = row['Length1'],row['Length2']
-        dom1_sid, dom2_sid = row['Domain1'], row['Domain2']
-        pdb_id_dom1, pdb_id_dom2 = dom1_sid[1:5], dom2_sid[1:5]
-        chainID_sid1, chainID_sid2 = dom1_sid[5], dom2_sid[5]
+        # Write header of the file containing the results of the bench:
+        with open('bench.csv', 'w') as bench_file:
+            bench_file.write("peel_pdb_id-ref_pdb_id;TMscore_ref;TM_parMATT;" +
+                       "best_peel_TM_rev;best_peel_TM;max_peel_TM;best_peel_gdt;" +
+                       "best_peel_gdt_rev;max_peel_gdt\n")
 
 
-        if idx == 0:
-            print("LEN_DOM1 (PEEL):", len_dom1)
-            print("LEN_DOM2 (REF):", len_dom2)
-
-            # # Deals with the case where chainID is not specified ('_'):
-            # if chainID_sid1 == '_':
-            #     chainID_dom1 = 'A'
-            # else:
-            #     chainID_dom1 = chainID_sid1.upper()
-            #
-            # if chainID_sid2 == '_':
-            #     chainID_dom2 = 'A'
-            # else:
-            #     chainID_dom2 = chainID_sid2.upper()
+        for idx, row in RIPC_txt.iterrows():
+            len_dom1, len_dom2 = row['Length1'],row['Length2']
+            dom1_sid, dom2_sid = row['Domain1'], row['Domain2']
+            pdb_id_dom1, pdb_id_dom2 = dom1_sid[1:5], dom2_sid[1:5]
+            chainID_sid1, chainID_sid2 = dom1_sid[5], dom2_sid[5]
 
             # If the PDB is absent from the data/ folder, it is downloaded:
-            if not os.path.isfile("data/" + pdb_id_dom1 + '.pdb'):
-                url_dom1 = get_url_dom(dom1_sid)
-                dl_pdb(url_dom1, pdb_id_dom1)
-            if not os.path.isfile("data/" + pdb_id_dom2 + '.pdb'):
-                url_dom2 = get_url_dom(dom2_sid)
-                dl_pdb(url_dom2, pdb_id_dom2)
+            if not os.path.isfile("data/" + dom1_sid + '.pdb'):
+                url_dom1 = ext.get_url_dom(dom1_sid)
+                ext.dl_pdb(url_dom1, pdb_id_dom1, dom1_sid)
+            if not os.path.isfile("data/" + dom2_sid + '.pdb'):
+                url_dom2 = ext.get_url_dom(dom2_sid)
+                ext.dl_pdb(url_dom2, pdb_id_dom2, dom2_sid)
 
-            print(pdb_id_dom1, pdb_id_dom2)
-            os.system("./main.py -p data/" + pdb_id_dom1 + '.pdb -r data/' +
-                      pdb_id_dom2 + ".pdb -b f")# -c " + chainID_dom1 + " -s " +
-                      #chainID_dom2)
+            cmd_main = ("./main.py -p data/" + dom1_sid + '.pdb -r data/' +
+                        dom2_sid + ".pdb -b t")
+            os.system(cmd_main)
 
-        # else:
-        #     sys.exit()
+
+    else: # Display plots and information about results:
+        results = pd.read_csv('bench.csv', sep=';', index_col=0)
+        all_means = results.loc[:, ['TMscore_ref', 'TM_parMATT', 'max_peel_TM',
+                               'max_peel_gdt']].mean()
+        disp_barplot(all_means)
+
+        print("Couples dont le peeled-TMscore est meilleur que celui de reference:")
+        TM_sup_ref = results.index[results['max_peel_TM'] > results['TMscore_ref']]
+        print(results.loc[TM_sup_ref, ['TMscore_ref', 'max_peel_TM']])
+
+        print('\n')
+        print("Couples dont le peeled-gdt-TMscore est meilleur que celui de " +
+              "reference:")
+        gdt_sup_ref = results.index[results['max_peel_gdt'] > results['TMscore_ref']]
+        print(results.loc[gdt_sup_ref, ['TMscore_ref', 'max_peel_gdt']])
+
+
+        # Couples with high TMscores, according the different methods:
+        cutoff_high = 0.5
+        print('\n\n')
+
+        print("Couples dont le peeled-TMscore est supérieur à " +
+              str(cutoff_high) + ":")
+        TM_high = results.index[results['max_peel_TM'] > cutoff_high]
+        print(results.loc[TM_high, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']])
+
+        print('\n')
+        print("Couples dont le peeled-gdt-TMscore est supérieur à " +
+              str(cutoff_high) + ":")
+        gdt_high = results.index[results['max_peel_gdt'] > cutoff_high]
+        print(results.loc[gdt_high, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']])
+
+        print('\n')
+        print("Couples dont le TMscore de reference est supérieur à " +
+              str(cutoff_high) + ":")
+        TM_ref_high = results.index[results['TMscore_ref'] > cutoff_high]
+        print(results.loc[TM_ref_high, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']])
+
+        # Couples with low TMscores, according the different methods:
+        cutoff_low = 0.17
+        print('\n\n')
+
+        print("Couples dont le peeled-TMscore est inferieur à " + str(cutoff_low) +
+              ":")
+        TM_low = results.index[results['max_peel_TM'] < cutoff_low]
+        print(results.loc[TM_low, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']])
+
+        print("NB mauvais peeled-TMscore:", len(TM_low))
+
+        print('\n')
+        print("Couples dont le peeled-gdt-TMscore est inferieur à " +
+              str(cutoff_low) + ":")
+        gdt_low = results.index[results['max_peel_gdt'] < cutoff_low]
+        print(results.loc[gdt_low, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']])
+        print("NB mauvais peeled-gdt-TMscore:", len(gdt_low))
+
+        print('\n')
+        print("Couples dont le TMscore de reference est inferieur à " +
+              str(cutoff_low) + ":")
+        TM_ref_low = results.index[results['TMscore_ref'] < cutoff_low]
+        print(results.loc[TM_ref_low, ['TMscore_ref', 'max_peel_gdt',
+                                        'max_peel_TM']], '\n')

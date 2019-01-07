@@ -40,7 +40,7 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
 
     print("Peeling of " + peeled_pdb_id + " in progress...")
     outPeel_sub = sub.Popen(cmdLine_peel.split(),
-                          stdout=sub.PIPE).communicate()[0]
+                            stdout=sub.PIPE).communicate()[0]
     outPeel_w_dies = outPeel_sub.decode().split('\n')
 
     # Remove files generated and used by peeling execution:
@@ -51,8 +51,10 @@ def peeling(peeled_pdb_path, peeled_pdb_id):
         os.remove("file_pu_delineation.mtx")
         os.remove("file_matrix_pu_contact.mtx")
 
+    list_out = [line for line in outPeel_w_dies if line and line[0] != '#']
     print("Peeling done!")
-    return [line for line in outPeel_w_dies if line and line[0] != '#']
+    
+    return list_out
 
 
 def peeled_to_dict(line):
@@ -254,7 +256,7 @@ def final_alignments(peeled_pdb_id, level, ref_pdb_id, peel_longer, out_peel):
         The current level, the values of gdt-calculated TMscore, the (regular)
         TMscore and the total number of PU within the current level
     """
-    PU_alignd_file = peeled_pdb_id + '_PUs_algnd_' + str(level)
+    PU_alignd_file = peeled_pdb_id + '-' + ref_pdb_id + '_PUs_' + str(level)
     nb_tot_PU = len(peeled_to_dict(out_peel[level-1]))
 
     TM_gdt = ext.gdt_pl(PU_alignd_file,
@@ -309,7 +311,8 @@ def peel_calc(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
 
         PUmax_name = (peeled_pdb_id + "_PU_" + str(level) + '_' +
                       str(nb_bestAlgnd_PU))
-        algnd_filename = peeled_pdb_id + '_PUs_algnd_' + str(level) + '.pdb'
+        algnd_filename = (peeled_pdb_id + '-' + ref_pdb_id + '_PUs_' +
+                          str(level) + '.pdb')
 
         write_algnd_PUs(PUmax_name, algnd_filename, i)
         erase_algned(dictCoord_ref, ref_pdb_id + str(level), PUmax_name)
@@ -349,7 +352,7 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
 
     # Creation of dssp file (needed for peeling):
     if not os.path.isfile("data/" + peeled_pdb_id + ".dss"):
-        os.system("bin/dssp32 -i " + peeled_pdb_path + " > data/" +
+        os.system("bin/dssp64 -i " + peeled_pdb_path + " > data/" +
                   peeled_pdb_id + ".dss")
 
     # Peeling:
@@ -360,25 +363,25 @@ def peeled_TMalign(ref_pdb_path, ref_pdb_id, dictCoord_ref,
     # if not os.path.isfile("results/" + peeled_pdb_id + '_PUs_algnd_' +
     #                       str(nb_tot_levels) + '.pdb'):
         # Parallelized version (TO TIME):
-        # nb_cpu = mp.cpu_count() - 1
-        nb_cpu = 1
-        # my_pool = mp.Pool(nb_cpu)
-        # partial_func = ftls.partial(peel_calc,
-                                      # out_peel=out_peel,
-                                      # dictCoord_peeled=dictCoord_peeled,
-                                      # peeled_pdb_id=peeled_pdb_id,
-                                      # dictCoord_ref=dictCoord_ref,
-                                      # ref_pdb_id=ref_pdb_id,
-                                      # peel_longer=peel_longer)
+        nb_cpu = mp.cpu_count() - 1
+        # nb_cpu = 1
+        my_pool = mp.Pool(nb_cpu)
+        partial_func = ftls.partial(peel_calc,
+                                      out_peel=out_peel,
+                                      dictCoord_peeled=dictCoord_peeled,
+                                      peeled_pdb_id=peeled_pdb_id,
+                                      dictCoord_ref=dictCoord_ref,
+                                      ref_pdb_id=ref_pdb_id,
+                                      peel_longer=peel_longer)
 
-        # res_tot_peel = my_pool.map(partial_func, range(len(out_peel)))
-        # my_pool.close()
+        res_tot_peel = my_pool.map(partial_func, range(len(out_peel)))
+        my_pool.close()
 
         # Serial version:
-        res_tot_peel = []
-        for idx in range(nb_tot_levels):
-            res_tot_peel.append(peel_calc(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
-                                 dictCoord_ref, ref_pdb_id, peel_longer))
+        # res_tot_peel = []
+        # for idx in range(nb_tot_levels):
+        #     res_tot_peel.append(peel_calc(idx, out_peel, dictCoord_peeled, peeled_pdb_id,
+        #                          dictCoord_ref, ref_pdb_id, peel_longer))
 
     else:
         print("Found files of aligned PUs ! Skipping...")
