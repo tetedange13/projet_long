@@ -26,7 +26,7 @@ by typing in a terminal from the root directory of the project:
 If this command does not work, and that you have Doxygen installed on your
 machine, you can regenerate the documentation with:
 
-            doxygen doxy.conf
+            doxygen doc/doxy.conf
 
 Followed by one of the above commands
 
@@ -36,33 +36,40 @@ Just imagine that it is nice and beautiful:
 
 Emergency description
 ---------------------
-The project consists in reimplementing an existing algorithm that finds
-transmembrane parts from transmembrane proteins
-From this article:
-
+The project consists in implementing a program integrating proteic units into
+the process of structural alignment.
 
 
 Requirements
 ------------
-docopt
-numpy
-matplotlib
+python          3.6.0 or higher
+numpy           1.15.2 or higher
+docopt          0.6.2 or higher
+pandas          0.22.0 or higher
+matplotlib      3.0.2 or higher
+multoprocessing 0.70.6.1 or higher
 
 
 
 Emergency content
 -----------------
 
-Usage:
-  main.py -p <peeledPdb> -r <refPdb>
+PeelAlign script
+  Usage:
+    main.py -p <peelPdb> -r <refPdb> [-b <benchMode>] [-c <peelChain>] [-s <refChain>]
 
-Options:
-  -h --help                  help
-  --version                  version of the script
-  -p --peeledPdb             input pdb file, that will be peeled
-  -r --refPdb                other input pdb file, that will be used as reference (not peeled)
+  Options:
+    -h --help                  help
+    --version                  version of the script
+    -p --peelPdb = peeled_pdb  input pdb file, that will be peeled
+    -r --refPdb = ref_pdb      other input pdb file, that will be used as reference (not peeled)
+    -b --benchMode = benching  Mode benchmarking (bool) [default: False]
+    -c --peelChain = pl_chain  Chain ID of the peeled PDB [default: first]
+    -s --refChain = ref_chain  Chain ID of the reference PDB [default: first]
 
 Example
 -------
 To run the script, with all the parameters:
     ./main.py -p data/1aoh.pdb -r data/1jlx.pdb
+
+Some PDB files that are usable for testing can be found in the data/ folder

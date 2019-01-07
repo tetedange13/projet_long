@@ -22,11 +22,6 @@ This program aims in integrating **proteic units** (PU) into the process of stru
   multoprocessing 0.70.6.1 or higher
   ```
 
-## Supplementary install steps for fusionned codes use
-- **Install csh**
-  ```bash
-  sudo apt-get install csh
-  ```
 
 ## Usage
 - The program is composed of 2 python scripts `main.py` and `bench.py`, all in the base directory.  
@@ -35,7 +30,8 @@ All modules are stored in the `src/` directory. <br>
 - Show help (for the main):
 ```
   $ python3 main.py -h
-
+```
+```
 PeelAlign script
   Usage:
     main.py -p <peelPdb> -r <refPdb> [-b <benchMode>] [-c <peelChain>] [-s <refChain>]
