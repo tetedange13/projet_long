@@ -6,16 +6,7 @@ Benchmarking script
 Process to the benchmarking if needed and then generate nice plots and other
 interesting information about the results of the benchmarking
 """
-# Usage:
-#   bench.py -p <peelPdb> -r <refPdb> [-b <benchMode>]
-#
-# Options:
-#   -h --help                  help
-#   --version                  version of the script
-#   -p --peelPdb = peeled_pdb  input pdb file, that will be peeled
-#   -r --refPdb = ref_pdb      other input pdb file, that will be used as reference (not peeled)
-#   -b --benchMode = benching  Mode benchmarking (bool) [default: False]
-# """
+
 
 import sys
 import os
@@ -23,24 +14,9 @@ import re
 import numpy as np
 import pandas as pd
 import subprocess as sub
-import matplotlib.pyplot as plt
 import src.external as ext
+import src.plotting as plot
 
-
-def disp_barplot(all_means):
-    fig = plt.figure()
-    axis = plt.subplot(111)
-    plt.title("Mean values of TMscore according to the method considered")
-
-
-    barlist = axis.bar(all_means.index, all_means.values)
-    fig.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=45)
-    for bar in barlist:
-        bar.set_color(list(np.random.random(size=3)))
-
-    fig.savefig("barplot.pdf")
-    plt.close(fig)
 
 
 # MAIN:
@@ -79,7 +55,7 @@ if __name__ == "__main__":
         results = pd.read_csv('bench.csv', sep=';', index_col=0)
         all_means = results.loc[:, ['TMscore_ref', 'TM_parMATT', 'max_peel_TM',
                                'max_peel_gdt']].mean()
-        disp_barplot(all_means)
+        plot.disp_barplot(all_means)
 
         print("Couples dont le peeled-TMscore est meilleur que celui de reference:")
         TM_sup_ref = results.index[results['max_peel_TM'] > results['TMscore_ref']]

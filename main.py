@@ -17,58 +17,11 @@ Options:
 
 import sys, os
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as tck
 from docopt import docopt
 import src.manage_io as mio
 import src.peeling as peel
 import src.external as ext
-
-
-def display_curve(levels_x, levels_x_rev, TMscores_y, TMscores_y_rev,
-                  res_gdt, res_gdt_rev,
-                  ref_pdb_id, peeled_pdb_id, parMATT_TMscore, ref_TMscore):
-    """
-    Display the curve of the values of TMscore (between aligned PU and reference
-    pdb), according to the level considered
-
-    Args:
-        levels_x: Levels considered (list)
-        TMscores_y: Values of TMscore (list)
-        pdb_ref_name: Name (str) of the reference pdb
-    """
-    fig = plt.figure()
-    axis = plt.subplot(111)
-    plt.title("TMscore according to the level considered")
-
-    # A list of plot to add different scores in the same plot
-    plots = []
-    plots.append(plt.plot(levels_x, TMscores_y, 'bx-'))
-    plots.append(plt.plot(levels_x_rev, TMscores_y_rev, 'gx-'))
-
-    # Get maximum number of PUs:
-    max_nb_PU = max(max(levels_x), max(levels_x_rev))
-    # Display horizontal line for parMATT TMscore:
-    plots.append(plt.plot([0, max_nb_PU],
-                          [parMATT_TMscore] * 2, 'k-'))
-    # Display horizontal line for reference (normal) TMscore:
-    plots.append(plt.plot([0, max_nb_PU],
-                          [ref_TMscore] * 2, 'm-'))
-
-    # gdt results:
-    plots.append(plt.plot(levels_x, res_gdt, 'cx-'))
-    plots.append(plt.plot(levels_x_rev, res_gdt_rev, 'rx-'))
-
-    # Add legends and axis labels:
-    plt.legend([plot[0] for plot in plots],
-               (peeled_pdb_id + " peeled", ref_pdb_id + " peeled",
-                "parMTT TMscore", 'TMscore ref'))
-    plt.ylabel('TMscores between ' + ref_pdb_id + ' and ' + peeled_pdb_id)
-    plt.xlabel('Number of PUs at each level of cutting')
-    axis.xaxis.set_major_locator(tck.MaxNLocator(integer=True))
-
-    fig.savefig("curves.pdf")
-    plt.close(fig)
+import src.plotting as plot
 
 
 def check_bool_type(rep):
@@ -177,7 +130,7 @@ if __name__ == "__main__":
 
     # Plot of the curves associated with the peeled-TMalign:
     if not BENCH_MODE:
-        display_curve(list_nb_PU, list_nb_PU_rev, res_peel, res_peel_rev,
+        plot.display_curve(list_nb_PU, list_nb_PU_rev, res_peel, res_peel_rev,
                       res_gdt, res_gdt_rev,
                       REF_PDB_ID, PEELED_PDB_ID, TM_parMATT, TMscore_ref)
     else:
