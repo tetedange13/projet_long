@@ -122,7 +122,7 @@ def gdt_pl(PU_alignd_file, ref_pdb_path, peel_longer):
     aligned PUs and reference PDB
 
     Args:
-        PU_pdb_path: Path to the pdb file of the given PU
+        PU_alignd_file: Path to the pdb file gethering all aligned PUs
         ref_pdb_path: Path (str) to the PDB to align against
         peel_longer: Boolean telling if the peeled protein is longer (or not)
         than the reference protein

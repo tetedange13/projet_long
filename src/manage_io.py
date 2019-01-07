@@ -15,7 +15,7 @@ def extract_chain(pdb_path, chain_id_arg='first'):
 
     Args:
         pdb_path: Path (str) to the pdb file, from which the chain will be
-        extracted
+            extracted
         chain_id_arg: The ID (str, 1 or 2 letters) of the chain to extract
 
     Returns:
